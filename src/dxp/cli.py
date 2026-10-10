@@ -33,7 +33,9 @@ def cmd_qd_download(args: argparse.Namespace) -> None:
     territory_ids = load_recorte(args.recorte)
     store = QDStore(args.data_dir)
     with QDClient() as client:
-        summary = store.download(client, territory_ids, args.since, args.until)
+        summary = store.download(
+            client, territory_ids, args.since, args.until, workers=args.workers
+        )
     print(
         f"{summary.gazettes} diários de {len(territory_ids)} municípios "
         f"({summary.texts_downloaded} textos baixados agora) -> {store.parquet_path}"
@@ -68,6 +70,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--recorte", type=Path, default=RECORTE)
     p.add_argument("--since", type=date.fromisoformat, default=SINCE)
     p.add_argument("--until", type=date.fromisoformat, default=UNTIL)
+    p.add_argument("--workers", type=int, default=4, help="downloads de texto em paralelo")
     p.set_defaults(func=cmd_qd_download)
 
     p = sub.add_parser("qd-resumo", help="status do texto por município")

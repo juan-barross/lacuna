@@ -92,3 +92,15 @@ def test_segunda_rodada_usa_o_cache(tmp_path, client, calls):
     assert len(calls) - first == 1
     assert summary.texts_downloaded == 0
     assert (tmp_path / "raw" / "qd" / "gazettes" / "2025-10.json").exists()
+
+
+def test_arquivo_parcial_nao_conta_como_cache(tmp_path, client):
+    store = QDStore(tmp_path)
+    partial = tmp_path / "raw" / "qd" / "txt" / "3304557" / "3304557_2025-10-01_aaa.part"
+    partial.parent.mkdir(parents=True)
+    partial.write_text("EXTRATO DE CONT", encoding="utf-8")
+
+    summary = store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
+
+    assert summary.by_status["ok"] == 1
+    assert not partial.exists()

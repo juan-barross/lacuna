@@ -14,6 +14,7 @@ import logging
 import re
 from collections import Counter
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -107,25 +108,49 @@ class QDStore:
             gazettes.extend(window)
         return gazettes
 
+    def _fetch_to_disk(self, client: QDClient, g: Gazette) -> None:
+        path = self._text_path(g)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Grava num temporário e renomeia: um download interrompido não vira cache.
+        tmp = path.with_suffix(".part")
+        tmp.write_text(client.fetch_text(g), encoding="utf-8")
+        tmp.replace(path)
+
     def download(
-        self, client: QDClient, territory_ids: Sequence[str], since: date, until: date
+        self,
+        client: QDClient,
+        territory_ids: Sequence[str],
+        since: date,
+        until: date,
+        *,
+        workers: int = 4,
     ) -> DownloadSummary:
         summary = DownloadSummary()
-        rows = []
-        for g in self.list_gazettes(client, territory_ids, since, until):
-            text, status, error = "", "sem_txt", None
-            if g.txt_url:
-                path = self._text_path(g)
+        gazettes = self.list_gazettes(client, territory_ids, since, until)
+
+        missing = [g for g in gazettes if g.txt_url and not self._text_path(g).exists()]
+        errors: dict[str, str] = {}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(self._fetch_to_disk, client, g): g for g in missing}
+            for i, future in enumerate(as_completed(futures), 1):
+                g = futures[future]
                 try:
-                    if not path.exists():
-                        path.parent.mkdir(parents=True, exist_ok=True)
-                        path.write_text(client.fetch_text(g), encoding="utf-8")
-                        summary.texts_downloaded += 1
-                    text = path.read_text(encoding="utf-8")
-                    status = text_status(text)
+                    future.result()
+                    summary.texts_downloaded += 1
                 except (QDError, httpx.HTTPError, OSError) as e:
-                    status, error = "erro", str(e)
+                    errors[g.gazette_id] = str(e)
                     log.error("%s: %s", g.gazette_id, e)
+                if i % 100 == 0:
+                    log.info("%d de %d textos", i, len(missing))
+
+        rows = []
+        for g in gazettes:
+            text, status, error = "", "sem_txt", None
+            if g.gazette_id in errors:
+                status, error = "erro", errors[g.gazette_id]
+            elif g.txt_url:
+                text = self._text_path(g).read_text(encoding="utf-8")
+                status = text_status(text)
             rows.append(
                 {
                     "gazette_id": g.gazette_id,
