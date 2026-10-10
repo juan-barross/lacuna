@@ -7,39 +7,23 @@ Critério de inclusão (ADR 0001): pelo menos MIN_GAZETTES diários no período.
 """
 
 import csv
-from pathlib import Path
 
-import httpx
+from dxp.cli import RECORTE, SINCE, UNTIL
+from dxp.ingest.qd import QDClient
 
-BASE_URL = "https://api.queridodiario.org.br"
 STATE = "RJ"
-SINCE = "2025-10-01"
-UNTIL = "2026-09-30"
 MIN_GAZETTES = 100
-OUT = Path(__file__).resolve().parents[1] / "data" / "recorte_rj.csv"
 
 
 def main() -> None:
-    with httpx.Client(
-        base_url=BASE_URL, headers={"User-Agent": "diario-x-pncp/0.1"}, timeout=30
-    ) as http:
-        cities = http.get("/cities", params={"levels": 3}).raise_for_status().json()["cities"]
+    with QDClient() as client:
         cities = sorted(
-            (c for c in cities if c["state_code"] == STATE), key=lambda c: c["territory_id"]
+            (c for c in client.cities(level=3) if c["state_code"] == STATE),
+            key=lambda c: c["territory_id"],
         )
-
         rows = []
         for city in cities:
-            resp = http.get(
-                "/gazettes",
-                params={
-                    "territory_ids": city["territory_id"],
-                    "published_since": SINCE,
-                    "published_until": UNTIL,
-                    "size": 0,
-                },
-            ).raise_for_status()
-            total = resp.json()["total_gazettes"]
+            total, _ = client.search([city["territory_id"]], SINCE, UNTIL, size=0)
             rows.append(
                 {
                     "territory_id": city["territory_id"],
@@ -49,14 +33,13 @@ def main() -> None:
                 }
             )
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with OUT.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+    with RECORTE.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
     kept = sum(r["included"] for r in rows)
-    print(f"{kept} de {len(rows)} municípios incluídos -> {OUT}")
+    print(f"{kept} de {len(rows)} municípios incluídos -> {RECORTE}")
 
 
 if __name__ == "__main__":
