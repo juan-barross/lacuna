@@ -8,7 +8,7 @@ from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +20,18 @@ USER_AGENT = "diario-x-pncp/0.1"
 RESULT_CAP = 10_000
 PAGE_SIZE = 100
 RETRY_STATUS = {429, 500, 502, 503, 504}
+# Erros de transporte que valem retentativa; protocolo inválido, por exemplo, não vale.
+RETRY_ERRORS = (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError)
+# Desde dez/2025 parte dos links vem com o endereço interno do bucket. O mesmo
+# arquivo está no domínio público.
+S3_PREFIX = "s3://okbr-qd-migration//"
+PUBLIC_FILES = "https://data.queridodiario.ok.org.br/"
+
+
+def public_file_url(url: str | None) -> str | None:
+    if url and url.startswith(S3_PREFIX):
+        return PUBLIC_FILES + url.removeprefix(S3_PREFIX)
+    return url
 
 
 class QDError(RuntimeError):
@@ -39,6 +51,11 @@ class Gazette(BaseModel):
     edition: str | None = None
     is_extra_edition: bool | None = None
     excerpts: list[str] = Field(default_factory=list)
+
+    @field_validator("url", "txt_url")
+    @classmethod
+    def _public_url(cls, url: str | None) -> str | None:
+        return public_file_url(url)
 
     @property
     def gazette_id(self) -> str:
@@ -93,7 +110,7 @@ class QDClient:
             try:
                 resp = self.http.get(url, params=params)
             except httpx.TransportError as e:
-                if attempt == self.max_retries:
+                if not isinstance(e, RETRY_ERRORS) or attempt == self.max_retries:
                     raise QDError(f"falha de rede em {url}: {e}") from e
                 log.warning("erro de rede em %s (%s), tentativa %d", url, e, attempt + 1)
             else:

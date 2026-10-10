@@ -196,3 +196,32 @@ def test_nao_retenta_erro_do_cliente():
     with pytest.raises(httpx.HTTPStatusError):
         make_client(handler).cities()
     assert len(calls) == 1
+
+
+def test_gazette_troca_endereco_interno_do_s3_pelo_publico():
+    path = "3302858/2025-12-02/600522b9f67b2b33122562555e3af4af613b2f67"
+    g = Gazette.model_validate(
+        {
+            "territory_id": "3302858",
+            "territory_name": "Mesquita",
+            "state_code": "RJ",
+            "date": "2025-12-02",
+            "scraped_at": "2025-12-03T06:00:00",
+            "url": f"s3://okbr-qd-migration//{path}.pdf",
+            "txt_url": f"s3://okbr-qd-migration//{path}.txt",
+        }
+    )
+    assert g.txt_url == f"https://data.queridodiario.ok.org.br/{path}.txt"
+    assert g.gazette_id == "3302858_2025-12-02_600522b9f67b2b33122562555e3af4af613b2f67"
+
+
+def test_nao_retenta_protocolo_invalido():
+    calls: list[httpx.Request] = []
+
+    def handler(request):
+        calls.append(request)
+        raise httpx.UnsupportedProtocol("s3://")
+
+    with pytest.raises(QDError, match="falha de rede"):
+        make_client(handler).cities()
+    assert len(calls) == 1
