@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Ferramentas
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Segredos
+.env
+
+# Dados baixados e derivados (não redistribuímos o dado bruto)
+data/raw/
+data/processed/
+*.duckdb
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
