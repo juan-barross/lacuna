@@ -1,0 +1,27 @@
+territory_id,territory_name,gazettes_in_period,included
+3300100,Angra Dos Reis,198,True
+3300233,Armação Dos Búzios,137,True
+3300258,Arraial do Cabo,0,False
+3300456,Belford Roxo,235,True
+3300704,Cabo Frio,5,False
+3301306,Casimiro de Abreu,141,True
+3301504,Cordeiro,237,True
+3301876,Iguaba Grande,11,False
+3302403,Macaé,265,True
+3302700,Maricá,72,False
+3302858,Mesquita,226,True
+3302908,Miguel Pereira,246,True
+3303302,Niterói,226,True
+3303401,Nova Friburgo,26,False
+3303500,Nova Iguaçu,263,True
+3304128,Quatis,227,True
+3304144,Queimados,244,True
+3304151,Quissamã,275,True
+3304557,Rio de Janeiro,318,True
+3305000,São João da Barra,0,False
+3305109,São João de Meriti,215,True
+3305158,São José do Vale do Rio Preto,321,True
+3305208,São Pedro da Aldeia,174,True
+3305505,Saquarema,232,True
+3305703,Sumidouro,405,True
+3306156,Varre-sai,0,False
