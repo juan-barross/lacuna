@@ -1,0 +1,77 @@
+{
+  "total_gazettes": 6,
+  "gazettes": [
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-01",
+      "scraped_at": "2025-10-02T14:13:48.533002",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-01/5b80964f0d12b37dc89c697ea8ac472824113671",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1133",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-01/5b80964f0d12b37dc89c697ea8ac472824113671.txt"
+    },
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-02",
+      "scraped_at": "2025-10-03T07:53:52.971425",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-02/6927a50f0a9f582f3b17cc53cededcaf33de25be",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1134",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-02/6927a50f0a9f582f3b17cc53cededcaf33de25be.txt"
+    },
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-03",
+      "scraped_at": "2025-10-04T00:39:23.314733",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-03/7fc44fe0d0df0580d07177169d286f32ac7dd72b",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1135",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-03/7fc44fe0d0df0580d07177169d286f32ac7dd72b.txt"
+    },
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-08",
+      "scraped_at": "2025-10-08T23:30:46.668114",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-08/db5dd70a11ea95d608374bf33c34298cb5f57d35",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1136",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-08/db5dd70a11ea95d608374bf33c34298cb5f57d35.txt"
+    },
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-09",
+      "scraped_at": "2025-10-09T23:27:22.251407",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-09/bb8a9827a269a268eca196fc7659879c9612cd6e",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1137",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-09/bb8a9827a269a268eca196fc7659879c9612cd6e.txt"
+    },
+    {
+      "territory_id": "3304128",
+      "date": "2025-10-10",
+      "scraped_at": "2025-10-10T23:24:45.840060",
+      "url": "https://data.queridodiario.ok.org.br/3304128/2025-10-10/9b680391f3f526dda02e31148a941650ef1f0278",
+      "territory_name": "Quatis",
+      "state_code": "RJ",
+      "excerpts": [],
+      "edition": "1138",
+      "is_extra_edition": false,
+      "txt_url": "https://data.queridodiario.ok.org.br/3304128/2025-10-10/9b680391f3f526dda02e31148a941650ef1f0278.txt"
+    }
+  ]
+}
