@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 # A URL antiga (queridodiario.ok.org.br/api) só redireciona para esta.
 BASE_URL = "https://api.queridodiario.org.br"
 # A API responde 403 ao User-Agent padrão de algumas bibliotecas.
-USER_AGENT = "diario-x-pncp/0.1"
+USER_AGENT = "lacuna/0.1 (+https://github.com/juan-barross/lacuna)"
 # total_gazettes satura em 10.000 e offset >= 10.000 devolve 500.
 RESULT_CAP = 10_000
 PAGE_SIZE = 100

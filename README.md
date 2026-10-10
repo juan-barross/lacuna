@@ -1,4 +1,6 @@
-# diario-x-pncp
+# Lacuna
+
+**Diários oficiais x PNCP.**
 
 Cruza os atos de contratação publicados nos diários oficiais municipais (via [Querido Diário](https://queridodiario.ok.org.br/)) com os contratos registrados no [Portal Nacional de Contratações Públicas (PNCP)](https://pncp.gov.br/) e mede, por município, quantos atos não têm registro correspondente no portal federal.
 

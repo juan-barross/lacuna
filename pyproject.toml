@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dxp"
+name = "lacuna"
 version = "0.1.0"
 description = "Concilia atos de contratação dos diários oficiais municipais com o PNCP"
 readme = "README.md"
