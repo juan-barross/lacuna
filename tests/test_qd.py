@@ -21,7 +21,6 @@ def make_client(handler) -> QDClient:
 
 
 def paged_handler(items: list[dict], calls: list[httpx.Request]):
-    """Simula /gazettes devolvendo `items` fatiado por size/offset."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request)

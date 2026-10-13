@@ -1,9 +1,3 @@
-"""Linha de comando do projeto.
-
-dxp qd-download              baixa os diários do recorte (com cache)
-dxp qd-resumo                status do texto por município
-"""
-
 import argparse
 import csv
 import logging
@@ -24,7 +18,6 @@ UNTIL = date(2026, 9, 30)
 
 
 def load_recorte(path: Path) -> list[str]:
-    """IDs IBGE dos municípios marcados como incluídos no recorte (ADR 0001)."""
     with path.open(encoding="utf-8") as f:
         return [r["territory_id"] for r in csv.DictReader(f) if r["included"] == "True"]
 

@@ -88,7 +88,6 @@ def test_segunda_rodada_usa_o_cache(tmp_path, client, calls):
 
     summary = store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
 
-    # Só o diário que deu 404 é tentado de novo.
     assert len(calls) - first == 1
     assert summary.texts_downloaded == 0
     assert (tmp_path / "raw" / "qd" / "gazettes" / "2025-10.json").exists()

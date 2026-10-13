@@ -1,11 +1,3 @@
-"""Gera data/recorte_rj.csv: municípios do RJ cobertos pelo Querido Diário e quantos
-diários cada um publicou no período do projeto.
-
-Critério de inclusão (ADR 0001): pelo menos MIN_GAZETTES diários no período.
-
-    python scripts/recorte_municipios.py
-"""
-
 import csv
 
 from dxp.cli import RECORTE, SINCE, UNTIL

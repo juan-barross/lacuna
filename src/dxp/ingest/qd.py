@@ -1,5 +1,3 @@
-"""Cliente da API do Querido Diário (https://api.queridodiario.org.br)."""
-
 import logging
 import time
 from collections.abc import Callable, Iterator, Sequence
@@ -12,18 +10,12 @@ from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
 
-# A URL antiga (queridodiario.ok.org.br/api) só redireciona para esta.
 BASE_URL = "https://api.queridodiario.org.br"
-# A API responde 403 ao User-Agent padrão de algumas bibliotecas.
 USER_AGENT = "lacuna/0.1 (+https://github.com/juan-barross/lacuna)"
-# total_gazettes satura em 10.000 e offset >= 10.000 devolve 500.
 RESULT_CAP = 10_000
 PAGE_SIZE = 100
 RETRY_STATUS = {429, 500, 502, 503, 504}
-# Erros de transporte que valem retentativa; protocolo inválido, por exemplo, não vale.
 RETRY_ERRORS = (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError)
-# Desde dez/2025 parte dos links vem com o endereço interno do bucket. O mesmo
-# arquivo está no domínio público.
 S3_PREFIX = "s3://okbr-qd-migration//"
 PUBLIC_FILES = "https://data.queridodiario.ok.org.br/"
 
@@ -39,8 +31,6 @@ class QDError(RuntimeError):
 
 
 class Gazette(BaseModel):
-    """Um diário oficial, como a rota /gazettes devolve."""
-
     territory_id: str
     territory_name: str
     state_code: str
@@ -59,13 +49,11 @@ class Gazette(BaseModel):
 
     @property
     def gazette_id(self) -> str:
-        """Identificador estável: município, data e o hash que o QD usa no nome do arquivo."""
         file_hash = PurePosixPath(urlparse(self.url).path).stem
         return f"{self.territory_id}_{self.date.isoformat()}_{file_hash}"
 
 
 def month_windows(since: date, until: date) -> list[tuple[date, date]]:
-    """Divide [since, until] em janelas de um mês do calendário, sem sobreposição."""
     windows = []
     start = since
     while start <= until:
@@ -77,8 +65,6 @@ def month_windows(since: date, until: date) -> list[tuple[date, date]]:
 
 
 class QDClient:
-    """Acesso à API do QD com retentativa e paginação que contorna o teto de 10.000."""
-
     def __init__(
         self,
         http: httpx.Client | None = None,
@@ -138,7 +124,6 @@ class QDClient:
         size: int | None = None,
         querystring: str = "",
     ) -> tuple[int, list[Gazette]]:
-        """Uma página de /gazettes. Devolve (total_gazettes, diários da página)."""
         params = [("territory_ids", t) for t in territory_ids] + [
             ("published_since", since.isoformat()),
             ("published_until", until.isoformat()),
@@ -154,7 +139,6 @@ class QDClient:
     def iter_gazettes(
         self, territory_ids: Sequence[str], since: date, until: date
     ) -> Iterator[Gazette]:
-        """Todos os diários do período, uma janela mensal por vez, sem repetição."""
         seen: set[str] = set()
         for start, end in month_windows(since, until):
             for g in self._iter_window(territory_ids, start, end):
