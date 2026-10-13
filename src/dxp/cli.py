@@ -1,18 +1,17 @@
 import argparse
 import csv
 import logging
-from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
-import pyarrow.parquet as pq
-
+from dxp.coverage import STATUSES, coverage_by_city, write_coverage
 from dxp.ingest.qd import QDClient
 from dxp.ingest.qd_store import QDStore
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 RECORTE = DATA_DIR / "recorte_rj.csv"
+APP_DATA = ROOT / "app" / "data"
 SINCE = date(2025, 10, 1)
 UNTIL = date(2026, 9, 30)
 
@@ -38,19 +37,17 @@ def cmd_qd_download(args: argparse.Namespace) -> None:
 
 
 def cmd_qd_resumo(args: argparse.Namespace) -> None:
-    table = pq.read_table(
-        QDStore(args.data_dir).parquet_path, columns=["territory_name", "text_status"]
-    )
-    counts: dict[str, Counter] = defaultdict(Counter)
-    for row in table.to_pylist():
-        counts[row["territory_name"]][row["text_status"]] += 1
+    rows = coverage_by_city(QDStore(args.data_dir).parquet_path)
+    print(f"{'município':32}" + "".join(f"{s:>9}" for s in STATUSES) + f"{'% ok':>8}")
+    for r in rows:
+        counts = "".join(f"{r[s]:>9}" for s in STATUSES)
+        print(f"{r['municipio']:32}{counts}{r['pct_texto']:>7.0f}%")
 
-    statuses = ["ok", "curto", "so_link", "vazio", "sem_txt", "erro"]
-    print(f"{'município':32}" + "".join(f"{s:>9}" for s in statuses) + f"{'% ok':>8}")
-    for name in sorted(counts):
-        c = counts[name]
-        pct = 100 * c["ok"] / c.total()
-        print(f"{name:32}" + "".join(f"{c[s]:>9}" for s in statuses) + f"{pct:>7.0f}%")
+
+def cmd_cobertura(args: argparse.Namespace) -> None:
+    rows = coverage_by_city(QDStore(args.data_dir).parquet_path)
+    write_coverage(rows, args.out)
+    print(f"{len(rows)} municípios -> {args.out}")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -68,6 +65,10 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("qd-resumo", help="status do texto por município")
     p.set_defaults(func=cmd_qd_resumo)
+
+    p = sub.add_parser("cobertura", help="exporta a cobertura usada pelo painel")
+    p.add_argument("--out", type=Path, default=APP_DATA / "cobertura.csv")
+    p.set_defaults(func=cmd_cobertura)
 
     args = parser.parse_args(argv)
     logging.basicConfig(
