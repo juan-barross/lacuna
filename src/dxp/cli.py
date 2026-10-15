@@ -8,6 +8,7 @@ from pathlib import Path
 from dxp.coverage import STATUSES, coverage_by_city, write_coverage
 from dxp.eval.extraction import load_gold, score
 from dxp.eval.gold import build_queue
+from dxp.eval.matching import precision, write_review
 from dxp.extract.llm import LLMExtractor, usage_report
 from dxp.extract.regex_baseline import extract as regex_extract
 from dxp.extract.segment import build_atos
@@ -15,6 +16,7 @@ from dxp.ingest.pncp import PNCPClient
 from dxp.ingest.pncp_store import PNCPStore
 from dxp.ingest.qd import QDClient
 from dxp.ingest.qd_store import QDStore
+from dxp.reconcile.pipeline import run, write_outputs
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
@@ -91,6 +93,27 @@ def cmd_avaliar(args: argparse.Namespace) -> None:
     report.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def cmd_conciliar(args: argparse.Namespace) -> None:
+    processed = args.data_dir / "processed"
+    extractor = EXTRACTORS[args.extrator]()
+    rows, rates, pncp = run(
+        processed / "atos.parquet", processed / "pncp_contratos.parquet", extractor, SINCE, UNTIL
+    )
+    write_outputs(rows, rates, pncp, APP_DATA)
+    write_review(rows, args.data_dir / "gold" / "casamentos.csv")
+    print(f"{'município':32}{'elegíveis':>10}{'casados':>9}{'prováveis':>11}{'taxa':>7}  IC 95%")
+    for r in rates:
+        taxa = f"{r['taxa']:.0%}" if r["taxa"] is not None else "-"
+        ic = f"{r['ic_inferior']:.0%} a {r['ic_superior']:.0%}"
+        counts = f"{r['elegiveis']:>10}{r['casados']:>9}{r['provaveis']:>11}"
+        print(f"{r['municipio']:32}{counts}{taxa:>7}  {ic}")
+
+
+def cmd_precisao(args: argparse.Namespace) -> None:
+    for key, value in precision(args.data_dir / "gold" / "casamentos.csv").items():
+        print(f"{key}: {value}")
+
+
 def cmd_qd_resumo(args: argparse.Namespace) -> None:
     rows = coverage_by_city(QDStore(args.data_dir).parquet_path)
     print(f"{'município':32}" + "".join(f"{s:>9}" for s in STATUSES) + f"{'% ok':>8}")
@@ -135,6 +158,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--extrator", choices=EXTRACTORS, default="regex")
     p.add_argument("--split", choices=["dev", "test"], default="dev")
     p.set_defaults(func=cmd_avaliar)
+
+    p = sub.add_parser("conciliar", help="concilia os atos com o PNCP e grava os dados do painel")
+    p.add_argument("--extrator", choices=EXTRACTORS, default="regex")
+    p.set_defaults(func=cmd_conciliar)
+
+    p = sub.add_parser("precisao", help="precisão do casamento na amostra conferida à mão")
+    p.set_defaults(func=cmd_precisao)
 
     p = sub.add_parser("cobertura", help="exporta a cobertura usada pelo painel")
     p.add_argument("--out", type=Path, default=APP_DATA / "cobertura.csv")
