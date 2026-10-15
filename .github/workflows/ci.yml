@@ -18,3 +18,8 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+      - name: avaliação no dev com respostas gravadas do LLM
+        if: hashFiles('data/gold/dev.jsonl') != ''
+        run: |
+          dxp avaliar --extrator regex --split dev
+          dxp avaliar --extrator llm --split dev
