@@ -1,10 +1,15 @@
 import argparse
 import csv
+import json
 import logging
 from datetime import date
 from pathlib import Path
 
 from dxp.coverage import STATUSES, coverage_by_city, write_coverage
+from dxp.eval.extraction import load_gold, score
+from dxp.eval.gold import build_queue
+from dxp.extract.regex_baseline import extract as regex_extract
+from dxp.extract.segment import build_atos
 from dxp.ingest.pncp import PNCPClient
 from dxp.ingest.pncp_store import PNCPStore
 from dxp.ingest.qd import QDClient
@@ -18,6 +23,8 @@ SINCE = date(2025, 10, 1)
 UNTIL = date(2026, 9, 30)
 PNCP_SINCE = date(2025, 8, 1)
 PNCP_UNTIL = date(2026, 10, 14)
+REPORTS = ROOT / "reports"
+EXTRACTORS = {"regex": lambda: regex_extract}
 
 
 def load_recorte(path: Path) -> list[str]:
@@ -46,6 +53,31 @@ def cmd_pncp_download(args: argparse.Namespace) -> None:
     with PNCPClient() as client:
         total = store.download(client, territory_ids, PNCP_SINCE, PNCP_UNTIL)
     print(f"{total} contratos de {len(territory_ids)} municípios -> {store.parquet_path}")
+
+
+def cmd_atos(args: argparse.Namespace) -> None:
+    out = args.data_dir / "processed" / "atos.parquet"
+    total = build_atos(QDStore(args.data_dir).parquet_path, out)
+    print(f"{total} extratos de contrato -> {out}")
+
+
+def cmd_amostra(args: argparse.Namespace) -> None:
+    out = args.data_dir / "gold" / "fila.jsonl"
+    print(f"{build_queue(args.data_dir / 'processed' / 'atos.parquet', out)} trechos -> {out}")
+
+
+def cmd_avaliar(args: argparse.Namespace) -> None:
+    gold = load_gold(args.data_dir / "gold" / f"{args.split}.jsonl")
+    result = score(gold, EXTRACTORS[args.extrator]())
+    print(f"{args.extrator} no {args.split} ({len(gold)} atos)")
+    print(f"{'campo':18}{'precisão':>10}{'recall':>8}{'F1':>7}{'n':>5}")
+    for field, m in result.items():
+        p, r, f1, n = m["precision"], m["recall"], m["f1"], m["support"]
+        print(f"{field:18}{p:>10.2f}{r:>8.2f}{f1:>7.2f}{n:>5}")
+    report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
+    report.parent.mkdir(exist_ok=True)
+    payload = {"extrator": args.extrator, "split": args.split, "n": len(gold), "campos": result}
+    report.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def cmd_qd_resumo(args: argparse.Namespace) -> None:
@@ -81,6 +113,17 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("qd-resumo", help="status do texto por município")
     p.set_defaults(func=cmd_qd_resumo)
+
+    p = sub.add_parser("atos", help="separa os extratos de contrato dos diários")
+    p.set_defaults(func=cmd_atos)
+
+    p = sub.add_parser("amostra", help="sorteia os trechos do conjunto ouro")
+    p.set_defaults(func=cmd_amostra)
+
+    p = sub.add_parser("avaliar", help="F1 por campo de um extrator contra o conjunto ouro")
+    p.add_argument("--extrator", choices=EXTRACTORS, default="regex")
+    p.add_argument("--split", choices=["dev", "test"], default="dev")
+    p.set_defaults(func=cmd_avaliar)
 
     p = sub.add_parser("cobertura", help="exporta a cobertura usada pelo painel")
     p.add_argument("--out", type=Path, default=APP_DATA / "cobertura.csv")
