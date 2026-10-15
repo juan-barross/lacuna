@@ -64,3 +64,9 @@ def test_build_atos_le_so_diarios_com_texto(tmp_path):
 
     assert build_atos(source, out) == 2
     assert pq.read_table(out).column("ato_id").to_pylist() == ["a#0", "a#1"]
+
+
+def test_junta_hifen_mesmo_com_linha_em_branco_no_meio():
+    text = "EXTRATO DO CONTRATO\nrepresenta- \n\n  do pela SECRETARIA. Valor: R$ 1,00."
+
+    assert "representado pela" in segments(text)[0]

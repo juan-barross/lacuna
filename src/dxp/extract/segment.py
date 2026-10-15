@@ -30,8 +30,8 @@ PAGE_NOISE = re.compile(
 
 def clean(text: str) -> str:
     text = PAGE_NOISE.sub("", text)
-    text = re.sub(r"-\n(?=[a-zà-ú])", "", text)
-    return re.sub(r"\n\s*\n+", "\n", text).strip()
+    text = re.sub(r"[ \t]*\n\s*\n+", "\n", text)
+    return re.sub(r"-[ \t]*\n[ \t]*(?=[a-zà-ú])", "", text).strip()
 
 
 def segments(text: str) -> list[str]:
