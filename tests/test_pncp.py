@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 import pyarrow.parquet as pq
 
-from dxp.ingest.pncp import BASE_URL, PNCPClient
+from dxp.ingest.pncp import BASE_URL, PNCPClient, windows
 from dxp.ingest.pncp_store import PNCPStore, flatten
 
 CONTRATO = json.loads(
@@ -38,9 +38,9 @@ def test_contratos_segue_as_paginas():
 
     contracts = make_client(handler).contracts(PREFEITURA, SINCE, UNTIL)
 
-    assert len(contracts) == 2
-    assert [c["pagina"] for c in calls] == ["1", "2"]
-    assert calls[0]["dataInicial"] == "20250801"
+    assert len(contracts) == 4
+    assert [c["pagina"] for c in calls] == ["1", "2", "1", "2"]
+    assert [c["dataInicial"] for c in calls[::2]] == ["20250801", "20260801"]
     assert calls[0]["tamanhoPagina"] == "500"
 
 
@@ -88,3 +88,10 @@ def test_download_grava_parquet_e_usa_cache(tmp_path):
     assert store.download(client, [NITEROI], SINCE, UNTIL) == 1
     assert len(calls) == first
     assert pq.read_table(store.parquet_path).num_rows == 1
+
+
+def test_janelas_de_no_maximo_365_dias():
+    assert windows(SINCE, UNTIL) == [
+        (date(2025, 8, 1), date(2026, 7, 31)),
+        (date(2026, 8, 1), date(2026, 10, 14)),
+    ]
