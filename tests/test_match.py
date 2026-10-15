@@ -96,3 +96,7 @@ def test_wilson():
     assert low == pytest.approx(0.404, abs=1e-3)
     assert high == pytest.approx(0.596, abs=1e-3)
     assert wilson(0, 0) == (0.0, 0.0)
+
+
+def test_nomes_diferentes_nao_viram_provavel():
+    assert status(ato(contratada_nome="WENDELL DO VALE SOUZA"), [contract()]) == "sem par"
