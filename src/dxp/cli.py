@@ -8,6 +8,7 @@ from pathlib import Path
 from dxp.coverage import STATUSES, coverage_by_city, write_coverage
 from dxp.eval.extraction import load_gold, score
 from dxp.eval.gold import build_queue
+from dxp.extract.llm import LLMExtractor, usage_report
 from dxp.extract.regex_baseline import extract as regex_extract
 from dxp.extract.segment import build_atos
 from dxp.ingest.pncp import PNCPClient
@@ -24,7 +25,7 @@ UNTIL = date(2026, 9, 30)
 PNCP_SINCE = date(2025, 8, 1)
 PNCP_UNTIL = date(2026, 10, 14)
 REPORTS = ROOT / "reports"
-EXTRACTORS = {"regex": lambda: regex_extract}
+EXTRACTORS = {"regex": lambda: regex_extract, "llm": lambda: LLMExtractor()}
 
 
 def load_recorte(path: Path) -> list[str]:
@@ -68,7 +69,9 @@ def cmd_amostra(args: argparse.Namespace) -> None:
 
 def cmd_avaliar(args: argparse.Namespace) -> None:
     gold = load_gold(args.data_dir / "gold" / f"{args.split}.jsonl")
-    result = score(gold, EXTRACTORS[args.extrator]())
+    extractor = EXTRACTORS[args.extrator]()
+    result = score(gold, extractor)
+    usage = usage_report(getattr(extractor, "calls", []))
     print(f"{args.extrator} no {args.split} ({len(gold)} atos)")
     print(f"{'campo':18}{'precisão':>10}{'recall':>8}{'F1':>7}{'n':>5}")
     for field, m in result.items():
@@ -76,7 +79,15 @@ def cmd_avaliar(args: argparse.Namespace) -> None:
         print(f"{field:18}{p:>10.2f}{r:>8.2f}{f1:>7.2f}{n:>5}")
     report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
     report.parent.mkdir(exist_ok=True)
-    payload = {"extrator": args.extrator, "split": args.split, "n": len(gold), "campos": result}
+    for key, value in usage.items():
+        print(f"  {key}: {value}")
+    payload = {
+        "extrator": args.extrator,
+        "split": args.split,
+        "n": len(gold),
+        "campos": result,
+        "uso": usage,
+    }
     report.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
