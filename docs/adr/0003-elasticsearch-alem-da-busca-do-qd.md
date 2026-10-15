@@ -1,6 +1,6 @@
 # ADR 0003: Índice próprio no Elasticsearch, além da busca da API do QD
 
-- **Status:** aceita
+- **Status:** substituída pela [ADR 0004](0004-duckdb-no-lugar-do-elasticsearch.md)
 - **Data:** 2026-10-10
 
 ## Contexto
