@@ -112,3 +112,17 @@ PROCESSO ADMINISTRATIVO N. º 091/2025
 OBJETO: Auxílio funeral. VALOR GLOBAL: R$ 10,00"""
 
     assert extract(text).contratada_nome == "FLORICULTURA E FUNERARIA CORDEIRO LTDA"
+
+
+@pytest.mark.parametrize(
+    "closing",
+    [
+        "Macaé, 07 de Outubro de 2025",
+        ". Macaé/RJ, 26 de novembro de 2025",
+        ". Macaé-RJ, 3 de maio de 2026",
+    ],
+)
+def test_nome_para_antes_do_fecho_com_cidade_e_data(closing):
+    text = f"Contratada: CONFIANZA TRANSPORTES LTDA {closing}. Valor: R$ 10,00"
+
+    assert extract(text).contratada_nome == "CONFIANZA TRANSPORTES LTDA"
