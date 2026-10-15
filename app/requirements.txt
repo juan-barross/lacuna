@@ -1,3 +1,5 @@
 streamlit==1.65.0
 altair==6.3.0
 pandas==3.0.6
+pyarrow==26.0.0
+duckdb==1.5.6
