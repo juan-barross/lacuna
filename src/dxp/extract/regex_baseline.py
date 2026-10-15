@@ -27,7 +27,8 @@ PROCESS_NUMBER = re.compile(
 PARTIES_SPLIT = re.compile(r"\s+e\s+(?:[ao]\s+)?(?:empresa\s+|sra?\.?\s+)?(?=\S)", re.I)
 NAME_END = re.compile(
     r",?\s*\(?\s*(?:CNPJ|CPF|inscrit|portador)|\.\s+(?=[A-ZÁ-Ú][a-zà-ú]+[ ,])"
-    r"|\s+(?=(?:CONTRATO|PROCESSO|PREG[ÃA]O|MODALIDADE)\b)",
+    r"|\s+(?=(?:CONTRATO|PROCESSO|PREG[ÃA]O|MODALIDADE)\b)"
+    r"|\.?\s+(?=[A-ZÁ-Ú][\w/-]*,\s*\d{1,2}º?\s+de\s)",
     re.I,
 )
 MAX_FIELD = 400
