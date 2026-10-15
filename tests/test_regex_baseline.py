@@ -100,3 +100,15 @@ def test_brl():
 )
 def test_partes_separa_so_no_primeiro_e(parties, expected):
     assert extract(f"Partes: {parties}. Valor: R$ 1,00").contratada_nome == expected
+
+
+def test_nome_para_antes_do_numero_do_contrato():
+    text = """EXTRATO DE CONTRATO
+CONTRATANTE: FUNDO MUNICIPAL DE ASSISTÊNCIA SOCIAL
+CONTRATADA: FLORICULTURA E FUNERARIA
+CORDEIRO LTDA
+CONTRATO N.º 233/2025
+PROCESSO ADMINISTRATIVO N. º 091/2025
+OBJETO: Auxílio funeral. VALOR GLOBAL: R$ 10,00"""
+
+    assert extract(text).contratada_nome == "FLORICULTURA E FUNERARIA CORDEIRO LTDA"
