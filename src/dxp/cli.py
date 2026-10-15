@@ -5,6 +5,8 @@ from datetime import date
 from pathlib import Path
 
 from dxp.coverage import STATUSES, coverage_by_city, write_coverage
+from dxp.ingest.pncp import PNCPClient
+from dxp.ingest.pncp_store import PNCPStore
 from dxp.ingest.qd import QDClient
 from dxp.ingest.qd_store import QDStore
 
@@ -14,6 +16,8 @@ RECORTE = DATA_DIR / "recorte_rj.csv"
 APP_DATA = ROOT / "app" / "data"
 SINCE = date(2025, 10, 1)
 UNTIL = date(2026, 9, 30)
+PNCP_SINCE = date(2025, 8, 1)
+PNCP_UNTIL = date(2026, 10, 14)
 
 
 def load_recorte(path: Path) -> list[str]:
@@ -34,6 +38,14 @@ def cmd_qd_download(args: argparse.Namespace) -> None:
     )
     for status, n in summary.by_status.most_common():
         print(f"  {status:8} {n}")
+
+
+def cmd_pncp_download(args: argparse.Namespace) -> None:
+    territory_ids = load_recorte(args.recorte)
+    store = PNCPStore(args.data_dir)
+    with PNCPClient() as client:
+        total = store.download(client, territory_ids, PNCP_SINCE, PNCP_UNTIL)
+    print(f"{total} contratos de {len(territory_ids)} municípios -> {store.parquet_path}")
 
 
 def cmd_qd_resumo(args: argparse.Namespace) -> None:
@@ -62,6 +74,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--until", type=date.fromisoformat, default=UNTIL)
     p.add_argument("--workers", type=int, default=4, help="downloads de texto em paralelo")
     p.set_defaults(func=cmd_qd_download)
+
+    p = sub.add_parser("pncp-download", help="baixa os contratos municipais do PNCP")
+    p.add_argument("--recorte", type=Path, default=RECORTE)
+    p.set_defaults(func=cmd_pncp_download)
 
     p = sub.add_parser("qd-resumo", help="status do texto por município")
     p.set_defaults(func=cmd_qd_resumo)

@@ -1,0 +1,61 @@
+{
+  "numeroControlePncpAta": null,
+  "codigoPaisFornecedor": null,
+  "numeroControlePncpCompra": "28521748000159-1-000080/2025",
+  "orgaoEntidade": {
+    "cnpj": "28521748000159",
+    "poderId": "N",
+    "esferaId": "M",
+    "razaoSocial": "MUNICIPIO DE NITEROI"
+  },
+  "anoContrato": 2025,
+  "sequencialContrato": 75,
+  "dataAtualizacao": "2025-10-01T11:08:34",
+  "numeroControlePNCP": "28521748000159-2-000075/2025",
+  "receita": false,
+  "numeroParcelas": 1,
+  "numeroRetificacao": 0,
+  "temRemanejamento": null,
+  "frutoAdesao": null,
+  "tipoPessoa": "PJ",
+  "niFornecedor": "52281385000106",
+  "nomeRazaoSocialFornecedor": "CONTAGOV LTDA",
+  "tipoContrato": {
+    "id": 7,
+    "nome": "Empenho"
+  },
+  "numeroContratoEmpenho": "2717",
+  "categoriaProcesso": {
+    "id": 8,
+    "nome": "Serviços"
+  },
+  "tipoPessoaSubContratada": null,
+  "niFornecedorSubContratado": null,
+  "nomeFornecedorSubContratado": null,
+  "objetoContrato": "Inscrição de servidores da Secretaria Executiva (SEXEC) no “Masterclass ORDEP 360° para Ordenadores de Despesas”, que ocorrerá nos dias 10 a 12 de novembro de 2025, de forma presencial, na cidade de Foz do Iguaçu/PR. ",
+  "valorInicial": 6613.0,
+  "valorParcela": 6613.0,
+  "valorGlobal": 6613.0,
+  "valorAcumulado": null,
+  "dataAssinatura": "2025-09-29",
+  "dataVigenciaInicio": "2025-10-01",
+  "dataVigenciaFim": "2026-09-30",
+  "identificadorCipi": null,
+  "urlCipi": null,
+  "processo": "9900185837/2025",
+  "informacaoComplementar": null,
+  "dataPublicacaoPncp": "2025-10-01T11:08:34",
+  "dataAtualizacaoGlobal": "2025-10-01T11:08:34",
+  "unidadeOrgao": {
+    "ufNome": "Rio de Janeiro",
+    "ufSigla": "RJ",
+    "municipioNome": "Niterói",
+    "codigoUnidade": "985865",
+    "nomeUnidade": "MRJ- PREFEITURA MUNICIPAL DE NITEROI",
+    "codigoIbge": "3303302"
+  },
+  "orgaoSubRogado": null,
+  "unidadeSubRogada": null,
+  "emendaParlamentar": null,
+  "usuarioNome": "Compras.gov.br"
+}
