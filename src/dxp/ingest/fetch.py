@@ -31,12 +31,19 @@ class Fetcher:
         *,
         max_retries: int = 3,
         backoff: float = 2.0,
+        rate_limit_wait: float = 30.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.http = http
         self.max_retries = max_retries
         self.backoff = backoff
+        self.rate_limit_wait = rate_limit_wait
         self._sleep = sleep
+
+    def _wait(self, attempt: int, resp: httpx.Response | None) -> float:
+        if resp is not None and resp.status_code == httpx.codes.TOO_MANY_REQUESTS:
+            return float(resp.headers.get("Retry-After", self.rate_limit_wait))
+        return self.backoff * 2**attempt
 
     def __enter__(self):
         return self
@@ -47,6 +54,7 @@ class Fetcher:
     def get(self, url: str, params: dict | list | None = None) -> httpx.Response:
         for attempt in range(self.max_retries + 1):
             last = attempt == self.max_retries
+            resp = None
             try:
                 resp = self.http.get(url, params=params)
             except httpx.TransportError as e:
@@ -61,5 +69,5 @@ class Fetcher:
                         f"{url} respondeu {resp.status_code} após {attempt + 1} tentativas"
                     )
                 log.warning("%s respondeu %d, tentativa %d", url, resp.status_code, attempt + 1)
-            self._sleep(self.backoff * 2**attempt)
+            self._sleep(self._wait(attempt, resp))
         raise AssertionError("inalcançável")

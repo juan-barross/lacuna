@@ -23,7 +23,7 @@ def windows(since: date, until: date, days: int = MAX_DAYS) -> list[tuple[date, 
 
 class PNCPClient(Fetcher):
     def __init__(self, http: httpx.Client | None = None, **kw):
-        super().__init__(http or make_client(BASE_URL, timeout=120), **kw)
+        super().__init__(http or make_client(BASE_URL, timeout=120), **{"max_retries": 10, **kw})
 
     def _search(self, path: str, params: dict, size: int, since: date, until: date):
         for start, end in windows(since, until):

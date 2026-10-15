@@ -225,3 +225,13 @@ def test_nao_retenta_protocolo_invalido():
     with pytest.raises(FetchError, match="falha de rede"):
         make_client(handler).cities()
     assert len(calls) == 1
+
+
+def test_espera_mais_quando_a_api_limita_o_ritmo():
+    waits: list[float] = []
+    responses = iter([httpx.Response(429), httpx.Response(200, json={"cities": []})])
+    http = httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(lambda r: next(responses)))
+
+    QDClient(http, sleep=waits.append).cities()
+
+    assert waits == [30.0]
