@@ -9,6 +9,7 @@ VALUE_TOLERANCE = 0.01
 MIN_VALUE_GAP = 1.0
 DATE_WINDOW_DAYS = 60
 NAME_THRESHOLD = 0.6
+CONFLICT_THRESHOLD = 0.3
 
 MATCHED, PROBABLE, UNMATCHED = "casado", "provável", "sem par"
 OUT_OF_SCOPE, NO_VALUE = "fora do escopo", "sem valor"
@@ -65,6 +66,8 @@ def classify(ato: dict, index: PNCPIndex) -> dict:
             bool(ato["contratada_cnpj"]) and ato["contratada_cnpj"] == contract["fornecedor_ni"]
         )
         similarity = token_f1(ato["contratada_nome"] or "", contract["fornecedor_nome"] or "")
+        if ato["contratada_nome"] and not same_cnpj and similarity < CONFLICT_THRESHOLD:
+            continue
         candidate = {
             "status": MATCHED if same_cnpj or similarity >= NAME_THRESHOLD else PROBABLE,
             "pncp_numero_controle": contract["numero_controle"],
