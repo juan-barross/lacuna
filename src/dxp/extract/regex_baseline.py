@@ -24,7 +24,7 @@ PROCESS_NUMBER = re.compile(
     r"((?:[A-Z]{2,}[\w-]*\s)?[\w./-]*\d[\w./-]*)",
     re.I,
 )
-PARTIES_SPLIT = re.compile(r"\s+e\s+(?:[ao]\s+)?(?:empresa\s+|sra?\.?\s+)?(?=[A-Z])")
+PARTIES_SPLIT = re.compile(r"\s+e\s+(?:[ao]\s+)?(?:empresa\s+|sra?\.?\s+)?(?=\S)", re.I)
 NAME_END = re.compile(
     r",?\s*\(?\s*(?:CNPJ|CPF|inscrit|portador)|\.\s+(?=[A-ZÁ-Ú][a-zà-ú]+[ ,])", re.I
 )
@@ -62,7 +62,7 @@ def number(pattern: re.Pattern, text: str) -> str | None:
 def contractor_name(text: str) -> str | None:
     name = labeled(text, r"contratad[ao]")
     if not name and (parties := labeled(text, "partes")):
-        name = PARTIES_SPLIT.split(parties)[-1]
+        name = PARTIES_SPLIT.split(parties, maxsplit=1)[-1]
     if not name:
         return None
     return NAME_END.split(name)[0].strip(" .;,") or None
