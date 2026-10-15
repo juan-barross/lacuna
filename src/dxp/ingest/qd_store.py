@@ -12,7 +12,8 @@ import httpx
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.ingest.qd import Gazette, QDClient, QDError, month_windows
+from dxp.ingest.fetch import FetchError
+from dxp.ingest.qd import Gazette, QDClient, month_windows
 
 log = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class QDStore:
                 try:
                     future.result()
                     summary.texts_downloaded += 1
-                except (QDError, httpx.HTTPError, OSError) as e:
+                except (FetchError, httpx.HTTPError, OSError) as e:
                     errors[g.gazette_id] = str(e)
                     log.error("%s: %s", g.gazette_id, e)
                 if i % 100 == 0:

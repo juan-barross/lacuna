@@ -5,7 +5,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from dxp.ingest.qd import BASE_URL, Gazette, QDClient, QDError, month_windows
+from dxp.ingest.fetch import FetchError
+from dxp.ingest.qd import BASE_URL, Gazette, QDClient, month_windows
 
 FIXTURES = Path(__file__).parent / "fixtures" / "qd"
 QUATIS = "3304128"
@@ -162,7 +163,7 @@ def test_dia_unico_no_teto_levanta_erro():
     def handler(request):
         return httpx.Response(200, json={"total_gazettes": 10_000, "gazettes": []})
 
-    with pytest.raises(QDError, match="único dia"):
+    with pytest.raises(FetchError, match="único dia"):
         list(make_client(handler).iter_gazettes([QUATIS], date(2025, 10, 1), date(2025, 10, 1)))
 
 
@@ -180,7 +181,7 @@ def test_desiste_depois_das_retentativas():
         calls.append(request)
         return httpx.Response(503)
 
-    with pytest.raises(QDError, match="503"):
+    with pytest.raises(FetchError, match="503"):
         make_client(handler).cities()
     assert len(calls) == 4
 
@@ -221,6 +222,6 @@ def test_nao_retenta_protocolo_invalido():
         calls.append(request)
         raise httpx.UnsupportedProtocol("s3://")
 
-    with pytest.raises(QDError, match="falha de rede"):
+    with pytest.raises(FetchError, match="falha de rede"):
         make_client(handler).cities()
     assert len(calls) == 1
