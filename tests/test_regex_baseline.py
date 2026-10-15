@@ -89,3 +89,14 @@ def test_parse_date(text, expected):
 
 def test_brl():
     assert brl("1.474.895,28") == 1474895.28
+
+
+@pytest.mark.parametrize(
+    ("parties", "expected"),
+    [
+        ("MUNICÍPIO DE MACAÉ/RJ E A EMPRESA SUGA RÁPIDO LTDA", "SUGA RÁPIDO LTDA"),
+        ("Município de Niterói e Silva e Souza Comércio LTDA", "Silva e Souza Comércio LTDA"),
+    ],
+)
+def test_partes_separa_so_no_primeiro_e(parties, expected):
+    assert extract(f"Partes: {parties}. Valor: R$ 1,00").contratada_nome == expected
