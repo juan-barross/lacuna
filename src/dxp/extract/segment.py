@@ -22,7 +22,14 @@ SCHEMA = pa.schema(
 )
 
 
+PAGE_NOISE = re.compile(
+    r"^.*(?:Assinado Digitalmente por|Diário Oficial do Município|D\.O\.RIO|Ano [XLVI]+ •).*\n?",
+    re.M,
+)
+
+
 def clean(text: str) -> str:
+    text = PAGE_NOISE.sub("", text)
     text = re.sub(r"-\n(?=[a-zà-ú])", "", text)
     return re.sub(r"\n\s*\n+", "\n", text).strip()
 
