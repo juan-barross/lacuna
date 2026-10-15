@@ -1,17 +1,13 @@
 import csv
-import unicodedata
 from collections import Counter
 from pathlib import Path
 
 import pyarrow.parquet as pq
 
+from dxp.text import sort_key
+
 STATUSES = ["ok", "curto", "so_link", "vazio", "sem_txt", "erro"]
 FIELDS = ["territory_id", "municipio", "diarios", *STATUSES, "pct_texto"]
-
-
-def sort_key(name: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", name.casefold())
-    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
 
 
 def coverage_by_city(parquet_path: Path) -> list[dict]:

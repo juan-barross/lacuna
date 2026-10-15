@@ -1,28 +1,12 @@
 import json
-import re
-import unicodedata
 from collections import Counter
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from dxp.extract.schema import FIELDS, Ato
+from dxp.text import fold, token_f1
 
 FUZZY_FIELDS = {"objeto": 0.5, "contratada_nome": 0.8}
-
-
-def fold(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text.casefold())
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    return " ".join(re.sub(r"[^\w/]", " ", text).split())
-
-
-def token_f1(a: str, b: str) -> float:
-    left, right = Counter(fold(a).split()), Counter(fold(b).split())
-    common = sum((left & right).values())
-    if not common:
-        return 0.0
-    precision, recall = common / sum(right.values()), common / sum(left.values())
-    return 2 * precision * recall / (precision + recall)
 
 
 def same(field: str, gold, pred) -> bool:
