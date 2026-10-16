@@ -19,9 +19,7 @@ INTERNAL_COLUMNS = {
 }
 
 
-def run(
-    atos: Path, pncp: Path, extract: Callable[[str], Ato], since: date, until: date, app_data: Path
-):
+def run(atos: Path, pncp: Path, extract: Callable[[str], Ato], since: date, until: date, app_data: Path):
     contracts = pq.read_table(pncp).to_pylist()
     rows = reconcile(
         [{**r, **extract(r["text"]).model_dump()} for r in pq.read_table(atos).to_pylist()],
@@ -36,10 +34,8 @@ def run(
     )
 
     write_csv(rates, app_data / "conciliacao.csv")
-    write_csv(
-        [{"territory_id": t, "pncp_contratos": n} for t, n in sorted(signed.items())],
-        app_data / "pncp_contratos.csv",
-    )
+    per_city = [{"territory_id": t, "pncp_contratos": n} for t, n in sorted(signed.items())]
+    write_csv(per_city, app_data / "pncp_contratos.csv", ["territory_id", "pncp_contratos"])
     slim = [{k: v for k, v in r.items() if k not in INTERNAL_COLUMNS} for r in rows]
     pq.write_table(pa.Table.from_pylist(slim), app_data / "atos.parquet", compression="zstd")
     return rows, rates
