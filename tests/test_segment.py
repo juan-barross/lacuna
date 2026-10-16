@@ -70,3 +70,21 @@ def test_junta_hifen_mesmo_com_linha_em_branco_no_meio():
     text = "EXTRATO DO CONTRATO\nrepresenta- \n\n  do pela SECRETARIA. Valor: R$ 1,00."
 
     assert "representado pela" in segments(text)[0]
+
+
+def test_tira_carimbo_e_cabecalho_de_pagina_do_meio_do_ato():
+    text = (
+        "EXTRATO DO CONTRATO\nPartes: PCRJ e X LTDA.\n"
+        "Assinado Digitalmente por EMPRESA MUNICIPAL DE ARTES GRÁFICAS S/A - 68.697.333/0001-55\n"
+        "Diário Oficial do Município do Rio de Janeiro\nValor: R$ 1,00."
+    )
+
+    (segment,) = segments(text)
+    assert "68.697.333" not in segment
+    assert "Diário Oficial" not in segment
+
+
+def test_trecho_longo_e_cortado():
+    text = "EXTRATO DO CONTRATO\nValor: R$ 1,00. " + "x " * 5000
+
+    assert len(segments(text)[0]) <= 3000

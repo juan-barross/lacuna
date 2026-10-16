@@ -233,3 +233,15 @@ def test_espera_mais_quando_a_api_limita_o_ritmo():
     QDClient(http, sleep=waits.append).cities()
 
     assert waits == [30.0]
+
+
+def test_respeita_retry_after_quando_a_api_manda():
+    waits: list[float] = []
+    responses = iter(
+        [httpx.Response(429, headers={"Retry-After": "7"}), httpx.Response(200, json={"cities": []})]
+    )
+    http = httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(lambda r: next(responses)))
+
+    QDClient(http, sleep=waits.append).cities()
+
+    assert waits == [7.0]

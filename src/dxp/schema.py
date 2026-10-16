@@ -5,17 +5,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from dxp.cnpj import is_valid, normalize
 
-FIELDS = [
-    "tipo",
-    "numero_contrato",
-    "processo",
-    "contratada_nome",
-    "contratada_cnpj",
-    "objeto",
-    "valor",
-    "data_assinatura",
-]
-
 
 class Ato(BaseModel):
     tipo: Literal["contrato", "pessoal", "outro"] = Field(
@@ -41,3 +30,6 @@ class Ato(BaseModel):
         if self.valor is not None and self.valor <= 0:
             out.append(f"valor não positivo: {self.valor}")
         return out
+
+
+FIELDS = list(Ato.model_fields)
