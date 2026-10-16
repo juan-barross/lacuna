@@ -4,8 +4,8 @@ import anthropic
 import httpx
 import pytest
 
-from dxp.extract.llm import MODEL, PROMPT, LLMExtractor, usage_report
-from dxp.extract.schema import Ato
+from dxp.llm import MODEL, PROMPT, LLMExtractor, usage_report
+from dxp.schema import Ato
 
 ATO = Ato(tipo="contrato", contratada_cnpj="34.075.739/0001-84", valor=10.0)
 

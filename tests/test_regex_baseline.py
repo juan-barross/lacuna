@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from dxp.extract.regex_baseline import brl, extract, parse_date
+from dxp.regex_baseline import brl, extract, parse_date
 
 SAQUAREMA = """EXTRATO DO CONTRATO
 N° 102/2025

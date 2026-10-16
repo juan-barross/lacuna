@@ -6,17 +6,17 @@ from datetime import date
 from pathlib import Path
 
 from dxp.coverage import STATUSES, coverage_by_city, write_coverage
-from dxp.eval.extraction import load_gold, score
-from dxp.eval.gold import build_queue
-from dxp.eval.matching import precision, write_review
-from dxp.extract.llm import LLMExtractor, usage_report
-from dxp.extract.regex_baseline import extract as regex_extract
-from dxp.extract.segment import build_atos
-from dxp.ingest.pncp import PNCPClient
-from dxp.ingest.pncp_store import PNCPStore
-from dxp.ingest.qd import QDClient
-from dxp.ingest.qd_store import QDStore
-from dxp.reconcile.pipeline import run, write_outputs
+from dxp.evaluation import load_gold, score
+from dxp.gold import build_queue
+from dxp.llm import LLMExtractor, usage_report
+from dxp.pipeline import run, write_outputs
+from dxp.pncp import PNCPClient
+from dxp.pncp_store import PNCPStore
+from dxp.qd import QDClient
+from dxp.qd_store import QDStore
+from dxp.regex_baseline import extract as regex_extract
+from dxp.review import precision, write_review
+from dxp.segment import build_atos
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"

@@ -9,7 +9,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from dxp.search.bm25 import BM25
+from dxp.bm25 import BM25
 from dxp.text import sort_key
 
 DATA = ROOT / "app" / "data"

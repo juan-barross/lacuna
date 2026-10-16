@@ -5,8 +5,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from dxp.ingest.fetch import FetchError
-from dxp.ingest.qd import BASE_URL, Gazette, QDClient, month_windows
+from dxp.fetch import FetchError
+from dxp.qd import BASE_URL, Gazette, QDClient, month_windows
 
 FIXTURES = Path(__file__).parent / "fixtures" / "qd"
 QUATIS = "3304128"

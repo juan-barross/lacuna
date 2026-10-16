@@ -4,7 +4,7 @@ from pathlib import Path
 import streamlit as st
 from pydantic import ValidationError
 
-from dxp.extract.schema import Ato
+from dxp.schema import Ato
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "data" / "gold"

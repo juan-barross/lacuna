@@ -3,7 +3,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from dxp.extract.schema import FIELDS, Ato
+from dxp.schema import FIELDS, Ato
 from dxp.text import fold, token_f1
 
 FUZZY_FIELDS = {"objeto": 0.5, "contratada_nome": 0.8}

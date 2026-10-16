@@ -8,11 +8,11 @@ from pathlib import Path
 
 import anthropic
 
-from dxp.extract.schema import Ato
+from dxp.schema import Ato
 
 MODEL = "claude-haiku-5-5"
 USD_PER_MTOK = {"claude-haiku-5-5": (0.10, 0.50)}
-CACHE_DIR = Path(__file__).resolve().parents[3] / "data" / "llm_cache"
+CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "llm_cache"
 
 PROMPT = """Você extrai dados de extratos de contrato publicados em diários oficiais municipais.
 

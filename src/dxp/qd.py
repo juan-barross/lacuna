@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import httpx
 from pydantic import BaseModel, Field, field_validator
 
-from dxp.ingest.fetch import Fetcher, FetchError, make_client
+from dxp.fetch import Fetcher, FetchError, make_client
 
 log = logging.getLogger(__name__)
 

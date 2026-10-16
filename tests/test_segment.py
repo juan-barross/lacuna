@@ -3,7 +3,7 @@ from datetime import date
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.extract.segment import build_atos, segments
+from dxp.segment import build_atos, segments
 
 GAZETTE = """SUMÁRIO
 EXTRATO DE CONTRATO ................................................. 18
