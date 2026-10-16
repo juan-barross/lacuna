@@ -146,3 +146,16 @@ def test_valor_global_vence_o_primeiro_valor_do_texto():
 
 def test_sem_valor_em_reais_fica_vazio():
     assert extract("Contratada: X LTDA. Valor: dez mil reais.").valor is None
+
+
+def test_quissama_partes_em_celebrado_entre():
+    text = """EXTRATO DE CONTRATO
+1 – CONTRATO Nº 086/2025.
+3 – Celebrado entre o Município de Quissamã e a empresa MENDES MUSIC
+PRODUÇÕES LTDA.
+4 – Objeto: Apresentação artística.
+7 – Valor Total: R$ 12.000,00 (doze mil reais)."""
+
+    ato = extract(text)
+    assert ato.contratada_nome == "MENDES MUSIC PRODUÇÕES LTDA"
+    assert ato.valor == 12000.0

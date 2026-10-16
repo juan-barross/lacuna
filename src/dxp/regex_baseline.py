@@ -24,6 +24,7 @@ PROCESS_NUMBER = re.compile(
     r"((?:[A-Z]{2,}[\w-]*\s)?[\w./-]*\d[\w./-]*)",
     re.I,
 )
+CELEBRATED = re.compile(r"celebrado entre\s+(.+?)\.\s*(?:\n|\d+\s*[–-]|$)", re.I | re.S)
 PARTIES_SPLIT = re.compile(r"\s+e\s+(?:[ao]\s+)?(?:empresa\s+|sra?\.?\s+)?(?=\S)", re.I)
 NAME_END = re.compile(
     r",?\s*\(?\s*(?:CNPJ|CPF|inscrit|portador)|\.\s+(?=[A-ZÁ-Ú][a-zà-ú]+[ ,])"
@@ -62,10 +63,17 @@ def number(pattern: re.Pattern, text: str) -> str | None:
     return match.group(1).strip(".") if match else None
 
 
+def parties(text: str) -> str | None:
+    if found := labeled(text, "partes"):
+        return found
+    celebrated = CELEBRATED.search(text)
+    return " ".join(celebrated.group(1).split()) if celebrated else None
+
+
 def contractor_name(text: str) -> str | None:
     name = labeled(text, r"contratad[ao]")
-    if not name and (parties := labeled(text, "partes")):
-        name = PARTIES_SPLIT.split(parties, maxsplit=1)[-1]
+    if not name and (both := parties(text)):
+        name = PARTIES_SPLIT.split(both, maxsplit=1)[-1]
     if not name:
         return None
     return NAME_END.split(name)[0].strip(" .;,") or None
