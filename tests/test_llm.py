@@ -92,3 +92,29 @@ def test_relatorio_de_custo_e_latencia(tmp_path):
     assert report["chamadas"] == 2
     assert report["custo_total_usd"] == pytest.approx((4000 * 0.10 + 600 * 0.50) / 1e6)
     assert report["custo_por_documento_usd"] == pytest.approx(report["custo_total_usd"] / 2)
+
+
+def test_relatorio_vazio_sem_chamadas():
+    assert usage_report([]) == {}
+
+
+def test_p50_e_p95_da_latencia(tmp_path):
+    extractor, _ = make(tmp_path, *[reply() for _ in range(20)])
+    for i in range(20):
+        extractor(f"texto {i}")
+    for i, call in enumerate(extractor.calls):
+        call.seconds = 10.0 if i >= 18 else 1.0
+
+    report = usage_report(extractor.calls)
+
+    assert (report["latencia_p50_s"], report["latencia_p95_s"]) == (1.0, 10.0)
+
+
+def test_prompt_novo_invalida_o_cache(tmp_path, monkeypatch):
+    extractor, messages = make(tmp_path, reply(), reply())
+    extractor("texto")
+    monkeypatch.setattr("dxp.llm.PROMPT_VERSION", "outro")
+
+    extractor("texto")
+
+    assert len(messages.calls) == 2

@@ -126,3 +126,23 @@ def test_nome_para_antes_do_fecho_com_cidade_e_data(closing):
     text = f"Contratada: CONFIANZA TRANSPORTES LTDA {closing}. Valor: R$ 10,00"
 
     assert extract(text).contratada_nome == "CONFIANZA TRANSPORTES LTDA"
+
+
+def test_cnpj_alfanumerico_no_texto():
+    ato = extract("Contratada: NOVA EMPRESA LTDA, CNPJ 12.ABC.345/01DE-35. Valor: R$ 10,00")
+
+    assert ato.contratada_cnpj == "12ABC34501DE35"
+
+
+def test_cnpj_com_digito_errado_e_ignorado():
+    assert extract("Contratada: X LTDA, CNPJ 12.ABC.345/01DE-34. Valor: R$ 10,00").contratada_cnpj is None
+
+
+def test_valor_global_vence_o_primeiro_valor_do_texto():
+    text = "Dotação: R$ 1,00 por item. Valor global: R$ 2.500,00. Valor empenhado: R$ 500,00."
+
+    assert extract(text).valor == 2500.0
+
+
+def test_sem_valor_em_reais_fica_vazio():
+    assert extract("Contratada: X LTDA. Valor: dez mil reais.").valor is None
