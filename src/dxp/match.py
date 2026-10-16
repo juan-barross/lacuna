@@ -77,7 +77,8 @@ def classify(ato: dict, index: PNCPIndex) -> dict:
 
 def reconcile(atos: list[dict], contracts: list[dict]) -> list[dict]:
     index = PNCPIndex(contracts)
-    return [{**ato, **classify(ato, index)} for ato in atos]
+    no_match = dict.fromkeys(["pncp_numero_controle", "pncp_fornecedor", "pncp_valor", "similaridade_nome"])
+    return [{**ato, **no_match, **classify(ato, index)} for ato in atos]
 
 
 def rates_by_city(rows: list[dict]) -> list[dict]:
