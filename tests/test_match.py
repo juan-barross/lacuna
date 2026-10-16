@@ -99,3 +99,10 @@ def test_wilson():
 
 def test_nomes_diferentes_nao_viram_provavel():
     assert status(ato(contratada_nome="WENDELL DO VALE SOUZA"), [contract()]) == "sem par"
+
+
+def test_toda_linha_tem_as_colunas_do_pncp_mesmo_sem_par():
+    unmatched, matched = reconcile([ato(valor=1.0), ato()], [contract()])
+
+    assert unmatched.keys() == matched.keys()
+    assert unmatched["pncp_fornecedor"] is None
