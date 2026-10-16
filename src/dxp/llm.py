@@ -1,13 +1,13 @@
 import hashlib
-import json
 import statistics
 import time
-from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 
 import anthropic
+from pydantic import BaseModel, Field
 
+from dxp.files import write_atomic
 from dxp.schema import Ato
 
 MODEL = "claude-haiku-5-5"
@@ -33,29 +33,17 @@ Nunca a data de início da vigência."""
 PROMPT_VERSION = hashlib.sha256(PROMPT.encode()).hexdigest()[:8]
 
 
-@dataclass
-class Call:
-    ato: Ato | None
+class Call(BaseModel):
+    ato: Ato | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     seconds: float = 0.0
     error: str | None = None
-    problems: list[str] = field(default_factory=list)
+    problems: list[str] = Field(default_factory=list, exclude=True)
 
     def cost(self, model: str = MODEL) -> float:
         price_in, price_out = USD_PER_MTOK[model]
         return (self.input_tokens * price_in + self.output_tokens * price_out) / 1_000_000
-
-    def to_json(self) -> str:
-        ato = self.ato.model_dump(mode="json") if self.ato else None
-        usage = {"input_tokens": self.input_tokens, "output_tokens": self.output_tokens}
-        return json.dumps({"ato": ato, **usage, "seconds": self.seconds, "error": self.error})
-
-    @classmethod
-    def from_json(cls, raw: str) -> "Call":
-        data = json.loads(raw)
-        ato = Ato.model_validate(data.pop("ato")) if data["ato"] else data.pop("ato")
-        return cls(ato=ato, **data)
 
 
 class LLMExtractor:
@@ -76,11 +64,10 @@ class LLMExtractor:
         key = hashlib.sha256(f"{self.model}\n{PROMPT_VERSION}\n{text}".encode()).hexdigest()
         path = self.cache_dir / f"{key}.json"
         if path.exists():
-            call = Call.from_json(path.read_text(encoding="utf-8"))
+            call = Call.model_validate_json(path.read_text(encoding="utf-8"))
         else:
             call = self._request(text)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(call.to_json(), encoding="utf-8")
+            write_atomic(path, call.model_dump_json())
         call.problems = call.ato.problems() if call.ato else [call.error]
         self.calls.append(call)
         return call
@@ -96,7 +83,7 @@ class LLMExtractor:
                 output_format=Ato,
             )
         except anthropic.AnthropicError as error:
-            return Call(ato=None, seconds=time.perf_counter() - start, error=repr(error))
+            return Call(seconds=time.perf_counter() - start, error=repr(error))
         finished = response.stop_reason == "end_turn"
         return Call(
             ato=response.parsed_output if finished else None,

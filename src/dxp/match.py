@@ -29,24 +29,21 @@ def contract_date(contract: dict) -> date:
     return contract["data_assinatura"] or contract["data_publicacao"]
 
 
+def contract_value(contract: dict) -> float:
+    return contract["valor_global"]
+
+
 class PNCPIndex:
     def __init__(self, contracts: list[dict]) -> None:
-        self.by_city: dict[str, list[dict]] = defaultdict(list)
-        for contract in contracts:
-            if contract["valor_global"]:
-                self.by_city[contract["territory_id"]].append(contract)
-        for rows in self.by_city.values():
-            rows.sort(key=lambda c: c["valor_global"])
-        self.values = {
-            city: [c["valor_global"] for c in rows] for city, rows in self.by_city.items()
-        }
+        self.by_city = defaultdict(list)
+        for contract in sorted((c for c in contracts if c["valor_global"]), key=contract_value):
+            self.by_city[contract["territory_id"]].append(contract)
 
     def near(self, territory_id: str, value: float, when: date) -> list[dict]:
-        gap = max(MIN_VALUE_GAP, value * VALUE_TOLERANCE)
-        values = self.values.get(territory_id, [])
-        lo, hi = bisect.bisect_left(values, value - gap), bisect.bisect_right(values, value + gap)
-        rows = self.by_city.get(territory_id, [])[lo:hi]
-        return [c for c in rows if abs((contract_date(c) - when).days) <= DATE_WINDOW_DAYS]
+        rows, gap = self.by_city.get(territory_id, []), max(MIN_VALUE_GAP, value * VALUE_TOLERANCE)
+        lo = bisect.bisect_left(rows, value - gap, key=contract_value)
+        hi = bisect.bisect_right(rows, value + gap, key=contract_value)
+        return [c for c in rows[lo:hi] if abs((contract_date(c) - when).days) <= DATE_WINDOW_DAYS]
 
 
 def rank(match: dict) -> tuple[int, float]:
@@ -62,9 +59,7 @@ def classify(ato: dict, index: PNCPIndex) -> dict:
     best = {"status": UNMATCHED}
     when = ato["data_assinatura"] or ato["date"]
     for contract in index.near(ato["territory_id"], ato["valor"], when):
-        same_cnpj = (
-            bool(ato["contratada_cnpj"]) and ato["contratada_cnpj"] == contract["fornecedor_ni"]
-        )
+        same_cnpj = bool(ato["contratada_cnpj"]) and ato["contratada_cnpj"] == contract["fornecedor_ni"]
         similarity = token_f1(ato["contratada_nome"] or "", contract["fornecedor_nome"] or "")
         if ato["contratada_nome"] and not same_cnpj and similarity < CONFLICT_THRESHOLD:
             continue

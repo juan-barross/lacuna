@@ -74,9 +74,7 @@ def contractor_name(text: str) -> str | None:
 def contractor_cnpj(text: str) -> str | None:
     found = [(m.start(), normalize(m.group())) for m in CNPJ.finditer(text) if is_valid(m.group())]
     label = re.search(r"contratad[ao]|partes", text, re.I)
-    candidates = (
-        [c for pos, c in found if pos > label.start()] if label else [c for _, c in found[-1:]]
-    )
+    candidates = [c for pos, c in found if pos > label.start()] if label else [c for _, c in found[-1:]]
     return candidates[0] if candidates else None
 
 

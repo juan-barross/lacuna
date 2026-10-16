@@ -45,9 +45,7 @@ def test_month_windows_cobre_o_periodo_sem_buracos():
 
 
 def test_month_windows_periodo_dentro_de_um_mes():
-    assert month_windows(date(2026, 2, 3), date(2026, 2, 20)) == [
-        (date(2026, 2, 3), date(2026, 2, 20))
-    ]
+    assert month_windows(date(2026, 2, 3), date(2026, 2, 20)) == [(date(2026, 2, 3), date(2026, 2, 20))]
 
 
 def test_gazette_aceita_item_da_api():

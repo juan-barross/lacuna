@@ -48,8 +48,7 @@ def test_casa_por_valor_data_e_nome():
 
 def test_casa_por_cnpj_mesmo_com_nome_diferente():
     assert (
-        status(ato(contratada_nome="ITALIA EMP", contratada_cnpj="34075739000184"), [contract()])
-        == "casado"
+        status(ato(contratada_nome="ITALIA EMP", contratada_cnpj="34075739000184"), [contract()]) == "casado"
     )
 
 
