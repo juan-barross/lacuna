@@ -95,7 +95,7 @@ class LLMExtractor:
                 messages=[{"role": "user", "content": text}],
                 output_format=Ato,
             )
-        except anthropic.APIError as error:
+        except anthropic.AnthropicError as error:
             return Call(ato=None, seconds=time.perf_counter() - start, error=repr(error))
         finished = response.stop_reason == "end_turn"
         return Call(
