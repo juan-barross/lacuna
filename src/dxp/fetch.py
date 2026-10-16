@@ -15,35 +15,27 @@ class FetchError(RuntimeError):
     pass
 
 
-def make_client(base_url: str, timeout: float = 60) -> httpx.Client:
-    return httpx.Client(
-        base_url=base_url,
-        headers={"User-Agent": USER_AGENT},
-        timeout=timeout,
-        follow_redirects=True,
-    )
-
-
 class Fetcher:
     def __init__(
         self,
-        http: httpx.Client,
+        base_url: str,
+        http: httpx.Client | None = None,
         *,
         max_retries: int = 3,
         backoff: float = 2.0,
         rate_limit_wait: float = 30.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        self.http = http
+        self.http = http or httpx.Client(
+            base_url=base_url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=120,
+            follow_redirects=True,
+        )
         self.max_retries = max_retries
         self.backoff = backoff
         self.rate_limit_wait = rate_limit_wait
         self._sleep = sleep
-
-    def _wait(self, attempt: int, resp: httpx.Response | None) -> float:
-        if resp is not None and resp.status_code == httpx.codes.TOO_MANY_REQUESTS:
-            return float(resp.headers.get("Retry-After", self.rate_limit_wait))
-        return self.backoff * 2**attempt
 
     def __enter__(self):
         return self
@@ -51,10 +43,14 @@ class Fetcher:
     def __exit__(self, *exc: object) -> None:
         self.http.close()
 
+    def _wait(self, attempt: int, resp: httpx.Response | None) -> float:
+        if resp is not None and resp.status_code == httpx.codes.TOO_MANY_REQUESTS:
+            return float(resp.headers.get("Retry-After", self.rate_limit_wait))
+        return self.backoff * 2**attempt
+
     def get(self, url: str, params: dict | list | None = None) -> httpx.Response:
         for attempt in range(self.max_retries + 1):
-            last = attempt == self.max_retries
-            resp = None
+            last, resp = attempt == self.max_retries, None
             try:
                 resp = self.http.get(url, params=params)
             except httpx.TransportError as e:
