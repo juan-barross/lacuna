@@ -37,9 +37,7 @@ def reconcile_once(tmp_path):
         "text": TEXT,
     }
     pq.write_table(pa.Table.from_pylist([ato]), atos)
-    pq.write_table(
-        pa.Table.from_pylist([CONTRACT, {**CONTRACT, "numero_controle": "pncp-2"}]), pncp
-    )
+    pq.write_table(pa.Table.from_pylist([CONTRACT, {**CONTRACT, "numero_controle": "pncp-2"}]), pncp)
     return run(atos, pncp, extract, date(2025, 9, 1), date(2025, 12, 31), tmp_path / "app")
 
 
@@ -49,9 +47,7 @@ def test_concilia_e_conta_contratos_do_pncp(tmp_path):
     assert rows[0]["status"] == "casado"
     assert rates[0]["territory_id"] == RIO
     assert rates[0]["taxa"] == 1.0
-    assert read_csv(tmp_path / "app" / "pncp_contratos.csv") == [
-        {"territory_id": RIO, "pncp_contratos": "2"}
-    ]
+    assert read_csv(tmp_path / "app" / "pncp_contratos.csv") == [{"territory_id": RIO, "pncp_contratos": "2"}]
 
 
 def test_painel_recebe_atos_sem_colunas_internas(tmp_path):
@@ -86,3 +82,12 @@ def test_sem_casados_nao_grava_planilha(tmp_path):
 
     assert write_review([{"status": "sem par", "ato_id": "a"}], path) == 0
     assert not path.exists()
+
+
+def test_sem_contrato_no_periodo_grava_so_o_cabecalho(tmp_path):
+    path = tmp_path / "pncp_contratos.csv"
+
+    write_csv([], path, ["territory_id", "pncp_contratos"])
+
+    assert path.read_text(encoding="utf-8") == "territory_id,pncp_contratos\n"
+    assert read_csv(path) == []

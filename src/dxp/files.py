@@ -19,10 +19,10 @@ def cached_json(path: Path, fetch: Callable[[], object]):
     return data
 
 
-def write_csv(rows: list[dict], path: Path) -> None:
+def write_csv(rows: list[dict], path: Path, columns: list[str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
+        writer = csv.DictWriter(f, fieldnames=columns or list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
