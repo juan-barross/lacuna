@@ -1,8 +1,8 @@
 import re
 from datetime import date
 
-from dxp.extract.schema import Ato
-from dxp.validate.cnpj import is_valid, normalize
+from dxp.cnpj import is_valid, normalize
+from dxp.schema import Ato
 
 MONTHS = "janeiro fevereiro março abril maio junho julho agosto setembro outubro novembro dezembro"
 MONTH_NUMBER = {name: i for i, name in enumerate(MONTHS.split(), 1)}

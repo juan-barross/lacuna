@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from dxp.validate.cnpj import is_valid, normalize
+from dxp.cnpj import is_valid, normalize
 
 FIELDS = [
     "tipo",

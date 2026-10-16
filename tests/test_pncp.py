@@ -5,8 +5,8 @@ from pathlib import Path
 import httpx
 import pyarrow.parquet as pq
 
-from dxp.ingest.pncp import BASE_URL, PNCPClient, windows
-from dxp.ingest.pncp_store import PNCPStore, flatten
+from dxp.pncp import BASE_URL, PNCPClient, windows
+from dxp.pncp_store import PNCPStore, flatten
 
 CONTRATO = json.loads(
     (Path(__file__).parent / "fixtures" / "pncp" / "contrato_niteroi.json").read_text("utf-8")

@@ -4,8 +4,8 @@ import httpx
 import pyarrow.parquet as pq
 import pytest
 
-from dxp.ingest.qd import BASE_URL, QDClient
-from dxp.ingest.qd_store import QDStore, text_status
+from dxp.qd import BASE_URL, QDClient
+from dxp.qd_store import QDStore, text_status
 
 TEXT_OK = "EXTRATO DE CONTRATO Nº 12/2025. " * 50
 

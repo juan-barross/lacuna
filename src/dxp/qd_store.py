@@ -12,8 +12,8 @@ import httpx
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.ingest.fetch import FetchError
-from dxp.ingest.qd import Gazette, QDClient, month_windows
+from dxp.fetch import FetchError
+from dxp.qd import Gazette, QDClient, month_windows
 
 log = logging.getLogger(__name__)
 

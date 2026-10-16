@@ -5,7 +5,7 @@ from datetime import date
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.eval.gold import build_queue, stratified
+from dxp.gold import build_queue, stratified
 
 ROWS = [{"ato_id": f"s{i}", "territory_name": "Saquarema"} for i in range(50)] + [
     {"ato_id": f"q{i}", "territory_name": "Quatis"} for i in range(2)

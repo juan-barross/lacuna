@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from dxp.reconcile.match import rates_by_city, reconcile, wilson
+from dxp.match import rates_by_city, reconcile, wilson
 
 RIO = "3304557"
 

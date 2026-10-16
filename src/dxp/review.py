@@ -2,8 +2,8 @@ import csv
 import random
 from pathlib import Path
 
-from dxp.eval.gold import SEED
-from dxp.reconcile.match import MATCHED, wilson
+from dxp.gold import SEED
+from dxp.match import MATCHED, wilson
 
 REVIEW_SIZE = 100
 FIELDS = [

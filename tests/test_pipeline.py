@@ -4,9 +4,9 @@ from datetime import date
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.eval.matching import precision, write_review
-from dxp.extract.regex_baseline import extract
-from dxp.reconcile.pipeline import run, write_outputs
+from dxp.pipeline import run, write_outputs
+from dxp.regex_baseline import extract
+from dxp.review import precision, write_review
 
 RIO = "3304557"
 TEXT = """EXTRATO DO CONTRATO

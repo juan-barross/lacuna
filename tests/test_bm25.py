@@ -1,6 +1,6 @@
 import pyarrow as pa
 
-from dxp.search.bm25 import BM25
+from dxp.bm25 import BM25
 
 ATOS = pa.table(
     {

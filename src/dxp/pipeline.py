@@ -7,8 +7,8 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.extract.schema import Ato
-from dxp.reconcile.match import rates_by_city, reconcile
+from dxp.match import rates_by_city, reconcile
+from dxp.schema import Ato
 
 APP_COLUMNS = [
     "ato_id",

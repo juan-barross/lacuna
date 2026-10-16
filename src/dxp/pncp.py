@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import httpx
 
-from dxp.ingest.fetch import Fetcher, make_client
+from dxp.fetch import Fetcher, make_client
 
 BASE_URL = "https://pncp.gov.br/api/consulta"
 MODALIDADES = range(1, 15)

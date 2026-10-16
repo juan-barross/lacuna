@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from dxp.eval.extraction import load_gold, score
-from dxp.extract.schema import Ato
+from dxp.evaluation import load_gold, score
+from dxp.schema import Ato
 from dxp.text import fold, token_f1
 
 GOLD = [

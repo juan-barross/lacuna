@@ -1,7 +1,7 @@
 import csv
 
 from dxp.cli import RECORTE, SINCE, UNTIL
-from dxp.ingest.qd import QDClient
+from dxp.qd import QDClient
 
 STATE = "RJ"
 MIN_GAZETTES = 100

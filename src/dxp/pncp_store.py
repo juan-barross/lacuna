@@ -8,7 +8,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.ingest.pncp import PNCPClient
+from dxp.pncp import PNCPClient
 
 log = logging.getLogger(__name__)
 
