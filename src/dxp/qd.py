@@ -91,9 +91,7 @@ class QDClient(Fetcher):
         data = self.get("/gazettes", params=params).json()
         return data["total_gazettes"], [Gazette.model_validate(g) for g in data["gazettes"]]
 
-    def iter_gazettes(
-        self, territory_ids: Sequence[str], since: date, until: date
-    ) -> Iterator[Gazette]:
+    def iter_gazettes(self, territory_ids: Sequence[str], since: date, until: date) -> Iterator[Gazette]:
         seen = set()
         for start, end in month_windows(since, until):
             for g in self._window(territory_ids, start, end):
@@ -118,9 +116,7 @@ class QDClient(Fetcher):
                 break
             _, page = self.search(territory_ids, since, until, offset=received)
         if received < total:
-            log.warning(
-                "%s a %s: API informou %d diários, vieram %d", since, until, total, received
-            )
+            log.warning("%s a %s: API informou %d diários, vieram %d", since, until, total, received)
 
     def listing(self, territory_ids: Sequence[str], since: date, until: date) -> list[dict]:
         return [g.model_dump(mode="json") for g in self.iter_gazettes(territory_ids, since, until)]
@@ -162,9 +158,7 @@ def download(
 
     missing = [g for g in gazettes if g.txt_url and not text_path(g).exists()]
     with ThreadPoolExecutor(workers) as pool:
-        errors = {
-            g.gazette_id: e for g, e in zip(missing, pool.map(fetch, missing), strict=True) if e
-        }
+        errors = {g.gazette_id: e for g, e in zip(missing, pool.map(fetch, missing), strict=True) if e}
 
     rows = []
     for g in gazettes:

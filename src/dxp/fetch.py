@@ -61,9 +61,7 @@ class Fetcher:
                 if resp.status_code not in RETRY_STATUS:
                     return resp.raise_for_status()
                 if last:
-                    raise FetchError(
-                        f"{url} respondeu {resp.status_code} após {attempt + 1} tentativas"
-                    )
+                    raise FetchError(f"{url} respondeu {resp.status_code} após {attempt + 1} tentativas")
                 log.warning("%s respondeu %d, tentativa %d", url, resp.status_code, attempt + 1)
             self._sleep(self._wait(attempt, resp))
         raise AssertionError("inalcançável")

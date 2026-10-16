@@ -30,9 +30,7 @@ class PNCPClient(Fetcher):
     def __init__(self, http: httpx.Client | None = None, **kw):
         super().__init__(BASE_URL, http, **{"max_retries": 10, **kw})
 
-    def _search(
-        self, path: str, params: dict, size: int, since: date, until: date
-    ) -> Iterator[dict]:
+    def _search(self, path: str, params: dict, size: int, since: date, until: date) -> Iterator[dict]:
         for start, end in windows(since, until):
             page = 1
             while True:
@@ -50,18 +48,14 @@ class PNCPClient(Fetcher):
         agencies = {}
         for modalidade in MODALIDADES:
             params = {"codigoModalidadeContratacao": modalidade, "codigoMunicipioIbge": ibge}
-            for item in self._search(
-                "/v1/contratacoes/publicacao", params, CONTRATACOES_PAGE, since, until
-            ):
+            for item in self._search("/v1/contratacoes/publicacao", params, CONTRATACOES_PAGE, since, until):
                 org = item["orgaoEntidade"]
                 if org["esferaId"] == "M":
                     agencies[org["cnpj"]] = org["razaoSocial"]
         return agencies
 
     def contracts(self, cnpj: str, since: date, until: date) -> list[dict]:
-        return list(
-            self._search("/v1/contratos", {"cnpjOrgao": cnpj}, CONTRATOS_PAGE, since, until)
-        )
+        return list(self._search("/v1/contratos", {"cnpjOrgao": cnpj}, CONTRATOS_PAGE, since, until))
 
 
 def iso_date(value: str | None) -> date | None:

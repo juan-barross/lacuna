@@ -10,9 +10,7 @@ STATUSES = ["ok", "curto", "so_link", "vazio", "sem_txt", "erro"]
 
 def coverage_by_city(gazettes: Path) -> list[dict]:
     counts = defaultdict(Counter)
-    for r in pq.read_table(
-        gazettes, columns=["territory_id", "territory_name", "text_status"]
-    ).to_pylist():
+    for r in pq.read_table(gazettes, columns=["territory_id", "territory_name", "text_status"]).to_pylist():
         counts[r["territory_id"], r["territory_name"]][r["text_status"]] += 1
     return [
         {
