@@ -1,12 +1,12 @@
-import csv
 from datetime import date
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from dxp.pipeline import run, write_outputs
+from dxp.evaluation import precision, write_review
+from dxp.files import read_csv, write_csv
+from dxp.pipeline import run
 from dxp.regex_baseline import extract
-from dxp.review import precision, write_review
 
 RIO = "3304557"
 TEXT = """EXTRATO DO CONTRATO
@@ -14,9 +14,18 @@ Contrato nº 198/2025
 Data da assinatura: 11/09/2025.
 Partes: PCRJ/SME e ITALIA EMPREENDIMENTOS LTDA.
 Valor: R$ 95.400,00."""
+CONTRACT = {
+    "numero_controle": "pncp-1",
+    "territory_id": RIO,
+    "fornecedor_ni": "1",
+    "fornecedor_nome": "ITALIA EMPREENDIMENTOS LTDA",
+    "valor_global": 95400.0,
+    "data_assinatura": date(2025, 9, 11),
+    "data_publicacao": date(2025, 9, 12),
+}
 
 
-def setup(tmp_path):
+def reconcile_once(tmp_path):
     atos, pncp = tmp_path / "atos.parquet", tmp_path / "pncp.parquet"
     ato = {
         "ato_id": "g#0",
@@ -28,53 +37,52 @@ def setup(tmp_path):
         "text": TEXT,
     }
     pq.write_table(pa.Table.from_pylist([ato]), atos)
-    contract = {
-        "numero_controle": "pncp-1",
-        "territory_id": RIO,
-        "fornecedor_ni": "1",
-        "fornecedor_nome": "ITALIA EMPREENDIMENTOS LTDA",
-        "valor_global": 95400.0,
-        "data_assinatura": date(2025, 9, 11),
-        "data_publicacao": date(2025, 9, 12),
-    }
     pq.write_table(
-        pa.Table.from_pylist([contract, {**contract, "numero_controle": "pncp-2"}]), pncp
+        pa.Table.from_pylist([CONTRACT, {**CONTRACT, "numero_controle": "pncp-2"}]), pncp
     )
-    return run(atos, pncp, extract, date(2025, 9, 1), date(2025, 12, 31))
+    return run(atos, pncp, extract, date(2025, 9, 1), date(2025, 12, 31), tmp_path / "app")
 
 
-def test_run_concilia_e_conta_contratos_do_pncp(tmp_path):
-    rows, rates, pncp = setup(tmp_path)
+def test_concilia_e_conta_contratos_do_pncp(tmp_path):
+    rows, rates = reconcile_once(tmp_path)
 
     assert rows[0]["status"] == "casado"
     assert rates[0]["territory_id"] == RIO
     assert rates[0]["taxa"] == 1.0
-    assert pncp == [{"territory_id": RIO, "pncp_contratos": 2}]
+    assert read_csv(tmp_path / "app" / "pncp_contratos.csv") == [
+        {"territory_id": RIO, "pncp_contratos": "2"}
+    ]
 
 
-def test_saidas_do_painel(tmp_path):
-    rows, rates, pncp = setup(tmp_path)
-
-    write_outputs(rows, rates, pncp, tmp_path / "app")
+def test_painel_recebe_atos_sem_colunas_internas(tmp_path):
+    reconcile_once(tmp_path)
 
     table = pq.read_table(tmp_path / "app" / "atos.parquet")
     assert table.column("status").to_pylist() == ["casado"]
-    assert (tmp_path / "app" / "conciliacao.csv").read_text("utf-8").startswith("territory_id,")
+    assert "gazette_id" not in table.column_names
+    assert read_csv(tmp_path / "app" / "conciliacao.csv")[0]["municipio"] == "Rio de Janeiro"
 
 
 def test_conferencia_dos_casamentos(tmp_path):
-    rows, _, _ = setup(tmp_path)
+    rows, _ = reconcile_once(tmp_path)
     path = tmp_path / "casamentos.csv"
 
     assert write_review(rows, path) == 1
     assert precision(path)["pendentes"] == 1
 
-    with path.open(encoding="utf-8") as f:
-        sample = list(csv.DictReader(f))
-    sample[0]["correto"] = "s"
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(sample[0]))
-        writer.writeheader()
-        writer.writerows(sample)
+    write_csv([{**read_csv(path)[0], "correto": "s"}], path)
 
-    assert precision(path)["precisao"] == 1.0
+    assert precision(path) == {
+        "conferidos": 1,
+        "pendentes": 0,
+        "precisao": 1.0,
+        "ic_inferior": 0.207,
+        "ic_superior": 1.0,
+    }
+
+
+def test_sem_casados_nao_grava_planilha(tmp_path):
+    path = tmp_path / "casamentos.csv"
+
+    assert write_review([{"status": "sem par", "ato_id": "a"}], path) == 0
+    assert not path.exists()

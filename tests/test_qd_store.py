@@ -4,10 +4,11 @@ import httpx
 import pyarrow.parquet as pq
 import pytest
 
-from dxp.qd import BASE_URL, QDClient
-from dxp.qd_store import QDStore, text_status
+from dxp.qd import BASE_URL, QDClient, download, text_status
 
 TEXT_OK = "EXTRATO DE CONTRATO Nº 12/2025. " * 50
+TEXTS = {"aaa.txt": TEXT_OK, "bbb.txt": "https://transparencia.exemplo.rj.gov.br/anexo.pdf"}
+OCTOBER = (date(2025, 10, 1), date(2025, 10, 31))
 
 
 def gazette(day: int, name: str, txt: bool = True) -> dict:
@@ -21,12 +22,6 @@ def gazette(day: int, name: str, txt: bool = True) -> dict:
         "url": url + ".pdf",
         "txt_url": url + ".txt" if txt else None,
     }
-
-
-TEXTS = {
-    "aaa.txt": TEXT_OK,
-    "bbb.txt": "https://transparencia.exemplo.rj.gov.br/anexo.pdf",
-}
 
 
 @pytest.fixture
@@ -43,12 +38,10 @@ def client(calls):
         if request.url.path == "/gazettes":
             return httpx.Response(200, json={"total_gazettes": len(items), "gazettes": items})
         name = request.url.path.rsplit("/", 1)[-1]
-        if name in TEXTS:
-            return httpx.Response(200, text=TEXTS[name])
-        return httpx.Response(404)
+        return httpx.Response(200, text=TEXTS[name]) if name in TEXTS else httpx.Response(404)
 
     http = httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler))
-    return QDClient(http, page_size=100, sleep=lambda _: None)
+    return QDClient(http, sleep=lambda _: None)
 
 
 @pytest.mark.parametrize(
@@ -66,40 +59,35 @@ def test_text_status(text, status):
 
 
 def test_download_grava_parquet_com_todos_os_diarios(tmp_path, client):
-    store = QDStore(tmp_path)
+    assert download(client, ["3304557"], *OCTOBER, tmp_path) == {
+        "ok": 1,
+        "so_link": 1,
+        "erro": 1,
+        "sem_txt": 1,
+    }
 
-    summary = store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
-
-    assert summary.gazettes == 4
-    assert summary.by_status == {"ok": 1, "so_link": 1, "erro": 1, "sem_txt": 1}
-    table = pq.read_table(store.parquet_path).to_pylist()
-    by_id = {r["gazette_id"].rsplit("_", 1)[-1]: r for r in table}
-    assert by_id["aaa"]["text"] == TEXT_OK
-    assert by_id["aaa"]["date"] == date(2025, 10, 1)
-    assert by_id["ccc"]["text_status"] == "erro"
-    assert "404" in by_id["ccc"]["error"]
-    assert by_id["ddd"]["text_status"] == "sem_txt"
+    rows = pq.read_table(tmp_path / "processed" / "qd_gazettes.parquet").to_pylist()
+    by_name = {r["gazette_id"].rsplit("_", 1)[-1]: r for r in rows}
+    assert by_name["aaa"]["text"] == TEXT_OK
+    assert by_name["aaa"]["date"] == date(2025, 10, 1)
+    assert "404" in by_name["ccc"]["error"]
+    assert by_name["ddd"]["text"] == ""
 
 
 def test_segunda_rodada_usa_o_cache(tmp_path, client, calls):
-    store = QDStore(tmp_path)
-    store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
+    download(client, ["3304557"], *OCTOBER, tmp_path)
     first = len(calls)
 
-    summary = store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
+    download(client, ["3304557"], *OCTOBER, tmp_path)
 
     assert len(calls) - first == 1
-    assert summary.texts_downloaded == 0
     assert (tmp_path / "raw" / "qd" / "gazettes" / "2025-10.json").exists()
 
 
 def test_arquivo_parcial_nao_conta_como_cache(tmp_path, client):
-    store = QDStore(tmp_path)
     partial = tmp_path / "raw" / "qd" / "txt" / "3304557" / "3304557_2025-10-01_aaa.part"
     partial.parent.mkdir(parents=True)
     partial.write_text("EXTRATO DE CONT", encoding="utf-8")
 
-    summary = store.download(client, ["3304557"], date(2025, 10, 1), date(2025, 10, 31))
-
-    assert summary.by_status["ok"] == 1
+    assert download(client, ["3304557"], *OCTOBER, tmp_path)["ok"] == 1
     assert not partial.exists()

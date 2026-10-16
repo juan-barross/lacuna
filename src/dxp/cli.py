@@ -1,180 +1,168 @@
 import argparse
-import csv
 import json
 import logging
 from datetime import date
 from pathlib import Path
 
-from dxp.coverage import STATUSES, coverage_by_city, write_coverage
-from dxp.evaluation import load_gold, score
-from dxp.gold import build_queue
+import pyarrow.parquet as pq
+
+from dxp import coverage, pncp, qd
+from dxp.evaluation import precision, score, write_queue, write_review
+from dxp.files import read_csv, read_jsonl, write_csv
 from dxp.llm import LLMExtractor, usage_report
-from dxp.pipeline import run, write_outputs
-from dxp.pncp import PNCPClient
-from dxp.pncp_store import PNCPStore
-from dxp.qd import QDClient
-from dxp.qd_store import QDStore
+from dxp.pipeline import run
 from dxp.regex_baseline import extract as regex_extract
-from dxp.review import precision, write_review
 from dxp.segment import build_atos
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = ROOT / "data"
-RECORTE = DATA_DIR / "recorte_rj.csv"
+RECORTE = ROOT / "data" / "recorte_rj.csv"
 APP_DATA = ROOT / "app" / "data"
-SINCE = date(2025, 10, 1)
-UNTIL = date(2026, 9, 30)
-PNCP_SINCE = date(2025, 8, 1)
-PNCP_UNTIL = date(2026, 10, 14)
 REPORTS = ROOT / "reports"
+SINCE, UNTIL = date(2025, 10, 1), date(2026, 9, 30)
+PNCP_SINCE, PNCP_UNTIL = date(2025, 8, 1), date(2026, 10, 14)
+MIN_GAZETTES = 100
 EXTRACTORS = {"regex": lambda: regex_extract, "llm": LLMExtractor}
 
 
-def load_recorte(path: Path) -> list[str]:
-    with path.open(encoding="utf-8") as f:
-        return [r["territory_id"] for r in csv.DictReader(f) if r["included"] == "True"]
+def load_recorte(path: Path = RECORTE) -> list[str]:
+    return [r["territory_id"] for r in read_csv(path) if r["included"] == "True"]
 
 
-def cmd_qd_download(args: argparse.Namespace) -> None:
-    territory_ids = load_recorte(args.recorte)
-    store = QDStore(args.data_dir)
-    with QDClient() as client:
-        summary = store.download(
-            client, territory_ids, args.since, args.until, workers=args.workers
+def show(value) -> str:
+    if isinstance(value, float):
+        return f"{value:.2f}"
+    return "-" if value is None else str(value)
+
+
+def print_table(rows: list[dict], columns: list[str]) -> None:
+    widths = [max(len(c), *(len(show(r[c])) for r in rows)) for c in columns]
+    print("  ".join(c.ljust(w) for c, w in zip(columns, widths, strict=True)))
+    for r in rows:
+        print("  ".join(show(r[c]).ljust(w) for c, w in zip(columns, widths, strict=True)))
+
+
+def recorte(args) -> None:
+    rows = []
+    with qd.QDClient() as client:
+        for city in sorted(client.cities(), key=lambda c: c["territory_id"]):
+            if city["state_code"] == "RJ":
+                total, _ = client.search([city["territory_id"]], SINCE, UNTIL, size=0)
+                name, territory_id = city["territory_name"], city["territory_id"]
+                rows.append(
+                    {
+                        "territory_id": territory_id,
+                        "territory_name": name,
+                        "gazettes_in_period": total,
+                    }
+                )
+    write_csv([{**r, "included": r["gazettes_in_period"] >= MIN_GAZETTES} for r in rows], RECORTE)
+    print_table(rows, ["territory_name", "gazettes_in_period"])
+
+
+def qd_download(args) -> None:
+    with qd.QDClient() as client:
+        print(qd.download(client, load_recorte(), SINCE, UNTIL, args.data_dir))
+
+
+def pncp_download(args) -> None:
+    with pncp.PNCPClient() as client:
+        print(
+            pncp.download(client, load_recorte(), PNCP_SINCE, PNCP_UNTIL, args.data_dir),
+            "contratos",
         )
+
+
+def atos(args) -> None:
     print(
-        f"{summary.gazettes} diários de {len(territory_ids)} municípios "
-        f"({summary.texts_downloaded} textos baixados agora) -> {store.parquet_path}"
+        build_atos(
+            args.data_dir / "processed" / "qd_gazettes.parquet",
+            args.data_dir / "processed" / "atos.parquet",
+        )
     )
-    for status, n in summary.by_status.most_common():
-        print(f"  {status:8} {n}")
 
 
-def cmd_pncp_download(args: argparse.Namespace) -> None:
-    territory_ids = load_recorte(args.recorte)
-    store = PNCPStore(args.data_dir)
-    with PNCPClient() as client:
-        total = store.download(client, territory_ids, PNCP_SINCE, PNCP_UNTIL)
-    print(f"{total} contratos de {len(territory_ids)} municípios -> {store.parquet_path}")
+def amostra(args) -> None:
+    rows = pq.read_table(args.data_dir / "processed" / "atos.parquet").to_pylist()
+    print(write_queue(rows, args.data_dir / "gold" / "fila.jsonl"), "trechos")
 
 
-def cmd_atos(args: argparse.Namespace) -> None:
-    out = args.data_dir / "processed" / "atos.parquet"
-    total = build_atos(QDStore(args.data_dir).parquet_path, out)
-    print(f"{total} extratos de contrato -> {out}")
-
-
-def cmd_amostra(args: argparse.Namespace) -> None:
-    out = args.data_dir / "gold" / "fila.jsonl"
-    print(f"{build_queue(args.data_dir / 'processed' / 'atos.parquet', out)} trechos -> {out}")
-
-
-def cmd_avaliar(args: argparse.Namespace) -> None:
-    gold = load_gold(args.data_dir / "gold" / f"{args.split}.jsonl")
+def avaliar(args) -> None:
     extractor = EXTRACTORS[args.extrator]()
-    result = score(gold, extractor)
+    result = score(read_jsonl(args.data_dir / "gold" / f"{args.split}.jsonl"), extractor)
+    print_table(
+        [{"campo": f, **m} for f, m in result.items()],
+        ["campo", "precision", "recall", "f1", "support"],
+    )
     usage = usage_report(getattr(extractor, "calls", []))
-    print(f"{args.extrator} no {args.split} ({len(gold)} atos)")
-    print(f"{'campo':18}{'precisão':>10}{'recall':>8}{'F1':>7}{'n':>5}")
-    for field, m in result.items():
-        p, r, f1, n = m["precision"], m["recall"], m["f1"], m["support"]
-        print(f"{field:18}{p:>10.2f}{r:>8.2f}{f1:>7.2f}{n:>5}")
-    for key, value in usage.items():
-        print(f"  {key}: {value}")
+    print(json.dumps(usage, indent=2))
     report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
     report.parent.mkdir(exist_ok=True)
-    payload = {
-        "extrator": args.extrator,
-        "split": args.split,
-        "n": len(gold),
-        "campos": result,
-        "uso": usage,
-    }
-    report.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    report.write_text(json.dumps({"campos": result, "uso": usage}, indent=2), encoding="utf-8")
 
 
-def cmd_conciliar(args: argparse.Namespace) -> None:
+def conciliar(args) -> None:
     processed = args.data_dir / "processed"
-    extractor = EXTRACTORS[args.extrator]()
-    rows, rates, pncp = run(
-        processed / "atos.parquet", processed / "pncp_contratos.parquet", extractor, SINCE, UNTIL
+    rows, rates = run(
+        processed / "atos.parquet",
+        processed / "pncp_contratos.parquet",
+        EXTRACTORS[args.extrator](),
+        SINCE,
+        UNTIL,
+        APP_DATA,
     )
-    write_outputs(rows, rates, pncp, APP_DATA)
     write_review(rows, args.data_dir / "gold" / "casamentos.csv")
-    print(f"{'município':32}{'elegíveis':>10}{'casados':>9}{'prováveis':>11}{'taxa':>7}  IC 95%")
-    for r in rates:
-        taxa = f"{r['taxa']:.0%}" if r["taxa"] is not None else "-"
-        ic = f"{r['ic_inferior']:.0%} a {r['ic_superior']:.0%}"
-        counts = f"{r['elegiveis']:>10}{r['casados']:>9}{r['provaveis']:>11}"
-        print(f"{r['municipio']:32}{counts}{taxa:>7}  {ic}")
+    print_table(
+        rates,
+        [
+            "municipio",
+            "elegiveis",
+            "casados",
+            "provaveis",
+            "sem_par",
+            "taxa",
+            "ic_inferior",
+            "ic_superior",
+        ],
+    )
 
 
-def cmd_precisao(args: argparse.Namespace) -> None:
-    for key, value in precision(args.data_dir / "gold" / "casamentos.csv").items():
-        print(f"{key}: {value}")
+def precisao(args) -> None:
+    print(precision(args.data_dir / "gold" / "casamentos.csv"))
 
 
-def cmd_qd_resumo(args: argparse.Namespace) -> None:
-    rows = coverage_by_city(QDStore(args.data_dir).parquet_path)
-    print(f"{'município':32}" + "".join(f"{s:>9}" for s in STATUSES) + f"{'% ok':>8}")
-    for r in rows:
-        counts = "".join(f"{r[s]:>9}" for s in STATUSES)
-        print(f"{r['municipio']:32}{counts}{r['pct_texto']:>7.0f}%")
+def cobertura(args) -> None:
+    rows = coverage.coverage_by_city(args.data_dir / "processed" / "qd_gazettes.parquet")
+    write_csv(rows, APP_DATA / "cobertura.csv")
+    print_table(rows, ["municipio", "diarios", *coverage.STATUSES, "pct_texto"])
 
 
-def cmd_cobertura(args: argparse.Namespace) -> None:
-    rows = coverage_by_city(QDStore(args.data_dir).parquet_path)
-    write_coverage(rows, args.out)
-    print(f"{len(rows)} municípios -> {args.out}")
+COMMANDS = {
+    "recorte": (recorte, "lista os municípios do RJ e marca os que entram no recorte"),
+    "qd-download": (qd_download, "baixa os diários do recorte"),
+    "pncp-download": (pncp_download, "baixa os contratos municipais do PNCP"),
+    "atos": (atos, "separa os extratos de contrato dos diários"),
+    "amostra": (amostra, "sorteia os trechos do conjunto ouro"),
+    "avaliar": (avaliar, "F1 por campo contra o conjunto ouro"),
+    "conciliar": (conciliar, "concilia os atos com o PNCP e grava os dados do painel"),
+    "precisao": (precisao, "precisão do casamento na amostra conferida à mão"),
+    "cobertura": (cobertura, "texto disponível por município"),
+}
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="dxp")
-    parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
+    parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("-v", "--verbose", action="store_true")
     sub = parser.add_subparsers(required=True)
-
-    p = sub.add_parser("qd-download", help="baixa os diários do recorte")
-    p.add_argument("--recorte", type=Path, default=RECORTE)
-    p.add_argument("--since", type=date.fromisoformat, default=SINCE)
-    p.add_argument("--until", type=date.fromisoformat, default=UNTIL)
-    p.add_argument("--workers", type=int, default=4, help="downloads de texto em paralelo")
-    p.set_defaults(func=cmd_qd_download)
-
-    p = sub.add_parser("pncp-download", help="baixa os contratos municipais do PNCP")
-    p.add_argument("--recorte", type=Path, default=RECORTE)
-    p.set_defaults(func=cmd_pncp_download)
-
-    p = sub.add_parser("qd-resumo", help="status do texto por município")
-    p.set_defaults(func=cmd_qd_resumo)
-
-    p = sub.add_parser("atos", help="separa os extratos de contrato dos diários")
-    p.set_defaults(func=cmd_atos)
-
-    p = sub.add_parser("amostra", help="sorteia os trechos do conjunto ouro")
-    p.set_defaults(func=cmd_amostra)
-
-    p = sub.add_parser("avaliar", help="F1 por campo de um extrator contra o conjunto ouro")
-    p.add_argument("--extrator", choices=EXTRACTORS, default="regex")
-    p.add_argument("--split", choices=["dev", "test"], default="dev")
-    p.set_defaults(func=cmd_avaliar)
-
-    p = sub.add_parser("conciliar", help="concilia os atos com o PNCP e grava os dados do painel")
-    p.add_argument("--extrator", choices=EXTRACTORS, default="regex")
-    p.set_defaults(func=cmd_conciliar)
-
-    p = sub.add_parser("precisao", help="precisão do casamento na amostra conferida à mão")
-    p.set_defaults(func=cmd_precisao)
-
-    p = sub.add_parser("cobertura", help="exporta a cobertura usada pelo painel")
-    p.add_argument("--out", type=Path, default=APP_DATA / "cobertura.csv")
-    p.set_defaults(func=cmd_cobertura)
-
+    for name, (func, help_text) in COMMANDS.items():
+        command = sub.add_parser(name, help=help_text)
+        command.set_defaults(func=func)
+        if name in ("avaliar", "conciliar"):
+            command.add_argument("--extrator", choices=EXTRACTORS, default="regex")
+        if name == "avaliar":
+            command.add_argument("--split", choices=["dev", "test"], default="dev")
     args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO if args.verbose else logging.WARNING,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
     args.func(args)
 
 
