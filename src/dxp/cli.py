@@ -27,7 +27,7 @@ UNTIL = date(2026, 9, 30)
 PNCP_SINCE = date(2025, 8, 1)
 PNCP_UNTIL = date(2026, 10, 14)
 REPORTS = ROOT / "reports"
-EXTRACTORS = {"regex": lambda: regex_extract, "llm": lambda: LLMExtractor()}
+EXTRACTORS = {"regex": lambda: regex_extract, "llm": LLMExtractor}
 
 
 def load_recorte(path: Path) -> list[str]:
@@ -79,10 +79,10 @@ def cmd_avaliar(args: argparse.Namespace) -> None:
     for field, m in result.items():
         p, r, f1, n = m["precision"], m["recall"], m["f1"], m["support"]
         print(f"{field:18}{p:>10.2f}{r:>8.2f}{f1:>7.2f}{n:>5}")
-    report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
-    report.parent.mkdir(exist_ok=True)
     for key, value in usage.items():
         print(f"  {key}: {value}")
+    report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
+    report.parent.mkdir(exist_ok=True)
     payload = {
         "extrator": args.extrator,
         "split": args.split,
