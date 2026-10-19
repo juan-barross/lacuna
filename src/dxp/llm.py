@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
+from dxp.fetch import Fetcher, FetchError
 from dxp.files import write_atomic
 from dxp.schema import Ato
 
@@ -54,16 +55,17 @@ class Call(BaseModel):
 
 
 class LLMExtractor:
-    def __init__(self, http: httpx.Client | None = None, model: str = MODEL, cache_dir: Path = CACHE_DIR):
-        self._http = http
+    def __init__(self, http: httpx.Client | None = None, model=MODEL, cache_dir: Path = CACHE_DIR, **retry):
+        self._http, self._retry = http, {"max_retries": 6, **retry}
         self.model = model
         self.cache_dir = cache_dir / model.replace("/", "_")
         self.calls: list[Call] = []
 
     @cached_property
-    def http(self) -> httpx.Client:
+    def api(self) -> Fetcher:
         token = os.environ.get("OPENROUTER_API_KEY", "")
-        return self._http or httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=180)
+        http = self._http or httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=180)
+        return Fetcher(URL, http, **self._retry)
 
     def __call__(self, text: str) -> Ato:
         return self.extract(text).ato or Ato(tipo="outro")
@@ -94,7 +96,7 @@ class LLMExtractor:
         }
         start = time.perf_counter()
         try:
-            data = self.http.post(URL, json=body).raise_for_status().json()
+            data = self.api.post(URL, json=body).json()
             choice, usage = data["choices"][0], data["usage"]
             tokens = {"input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"]}
             if choice["finish_reason"] != "stop":
@@ -104,7 +106,7 @@ class LLMExtractor:
                     error=f"finish_reason={choice['finish_reason']}",
                 )
             ato = Ato.model_validate_json(choice["message"]["content"])
-        except (httpx.HTTPError, KeyError, ValidationError) as error:
+        except (FetchError, httpx.HTTPError, KeyError, ValidationError) as error:
             return Call(seconds=time.perf_counter() - start, error=repr(error)[:300])
         return Call(ato=ato, **tokens, seconds=time.perf_counter() - start)
 

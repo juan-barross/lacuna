@@ -32,7 +32,8 @@ def make(tmp_path, *responses):
             raise response
         return response
 
-    return LLMExtractor(httpx.Client(transport=httpx.MockTransport(handler)), cache_dir=tmp_path), sent
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    return LLMExtractor(http, cache_dir=tmp_path, max_retries=1, sleep=lambda _: None), sent
 
 
 def test_pede_saida_no_formato_do_ato(tmp_path):
@@ -76,7 +77,7 @@ def test_resposta_cortada_vira_erro_e_nao_vai_para_o_cache(tmp_path):
 
 @pytest.mark.parametrize(
     "response",
-    [httpx.Response(401, json={"error": "chave inválida"}), httpx.ConnectError("sem rede"), reply(ato=None)],
+    [httpx.Response(401, json={"error": "chave inválida"}), reply(ato=None)],
 )
 def test_falha_vira_erro_registrado_sem_derrubar_a_avaliacao(tmp_path, response):
     extractor, _ = make(tmp_path, response)
@@ -141,3 +142,10 @@ def test_load_env_nao_sobrescreve_variavel_existente(tmp_path, monkeypatch):
     load_env(env)
 
     assert (os.environ["JA_EXISTE"], os.environ["NOVA"]) == ("ambiente", "valor")
+
+
+def test_limite_de_ritmo_e_retentado(tmp_path):
+    extractor, sent = make(tmp_path, httpx.Response(429), reply())
+
+    assert extractor("texto") == ATO
+    assert len(sent) == 2
