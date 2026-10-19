@@ -96,6 +96,8 @@ def test_brl():
     [
         ("MUNICÍPIO DE MACAÉ/RJ E A EMPRESA SUGA RÁPIDO LTDA", "SUGA RÁPIDO LTDA"),
         ("Município de Niterói e Silva e Souza Comércio LTDA", "Silva e Souza Comércio LTDA"),
+        ("Município De Niterói e A R G SIGNORELLI - PRODUCAO MUSICAL", "A R G SIGNORELLI - PRODUCAO MUSICAL"),
+        ("Município de Cordeiro e a Floricultura Cordeiro LTDA", "Floricultura Cordeiro LTDA"),
     ],
 )
 def test_partes_separa_so_no_primeiro_e(parties, expected):
