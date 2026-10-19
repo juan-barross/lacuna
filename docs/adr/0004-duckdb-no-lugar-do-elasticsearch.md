@@ -1,13 +1,13 @@
 # ADR 0004: Busca BM25 no DuckDB no lugar do Elasticsearch
 
-- **Status:** aceita, substitui a [ADR 0003](0003-elasticsearch-alem-da-busca-do-qd.md)
-- **Data:** 2026-10-15
+- Status: aceita, substitui a [ADR 0003](0003-elasticsearch-alem-da-busca-do-qd.md)
+- Data: 2026-10-15
 
 ## Contexto
 
 A ADR 0003 previa um Elasticsearch local para indexar o texto dos diários. Na prática, a máquina de desenvolvimento tem 4 GB de RAM, e um nó do Elasticsearch pede pelo menos 1 a 2 GB só de heap. Com o texto completo (cerca de 220 MB em Parquet), o índice e o sistema disputando memória, o ambiente fica instável.
 
-Também ficou claro que a busca não precisa rodar sobre o diário inteiro. A segmentação por cabeçalho ("EXTRATO DO CONTRATO", "EXTRATO DE CONTRATO") já separa os atos de contratação, e são cerca de 3.900 trechos, com mediana de 900 caracteres. É um corpus pequeno.
+Também ficou claro que a busca não precisa rodar sobre o diário inteiro. A segmentação por cabeçalho ("EXTRATO DO CONTRATO", "EXTRATO DE CONTRATO") já separa os atos de contratação, e são só cerca de 3.900 trechos, com mediana de 900 caracteres.
 
 ## Decisão
 

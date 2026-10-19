@@ -4,18 +4,13 @@ from pathlib import Path
 import streamlit as st
 from pydantic import ValidationError
 
+from dxp.files import read_jsonl
 from dxp.schema import Ato
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "data" / "gold"
 QUEUE = GOLD / "fila.jsonl"
 TEXT_FIELDS = ["numero_contrato", "processo", "contratada_nome", "contratada_cnpj", "objeto"]
-
-
-def read(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
 def to_number(raw: str) -> str | None:
@@ -25,12 +20,12 @@ def to_number(raw: str) -> str | None:
 
 st.set_page_config(page_title="Anotação", layout="wide")
 
-queue = read(QUEUE)
+queue = read_jsonl(QUEUE)
 if not queue:
     st.error("Rode `dxp amostra` antes de anotar.")
     st.stop()
 
-done = {r["ato_id"] for split in ("dev", "test") for r in read(GOLD / f"{split}.jsonl")}
+done = {r["ato_id"] for split in ("dev", "test") for r in read_jsonl(GOLD / f"{split}.jsonl")}
 pending = [r for r in queue if r["ato_id"] not in done]
 st.progress(len(done) / len(queue), text=f"{len(done)} de {len(queue)} rotulados")
 if not pending:

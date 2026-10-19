@@ -1,7 +1,7 @@
-# ADR 0001: Recorte — RJ, outubro de 2025 a setembro de 2026
+# ADR 0001: Recorte no RJ, outubro de 2025 a setembro de 2026
 
-- **Status:** aceita
-- **Data:** 2026-10-10
+- Status: aceita
+- Data: 2026-10-10
 
 ## Contexto
 
