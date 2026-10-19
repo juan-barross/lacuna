@@ -91,3 +91,12 @@ def test_sem_contrato_no_periodo_grava_so_o_cabecalho(tmp_path):
 
     assert path.read_text(encoding="utf-8") == "territory_id,pncp_contratos\n"
     assert read_csv(path) == []
+
+
+def test_conferencia_ja_preenchida_nao_e_sobrescrita(tmp_path):
+    rows, _ = reconcile_once(tmp_path)
+    path = tmp_path / "casamentos.csv"
+    write_csv([{"ato_id": "g#0", "correto": "s"}], path)
+
+    assert write_review(rows, path) == 0
+    assert read_csv(path) == [{"ato_id": "g#0", "correto": "s"}]
