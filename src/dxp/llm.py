@@ -1,17 +1,19 @@
 import hashlib
+import os
 import statistics
 import time
 from functools import cached_property
 from pathlib import Path
 
-import anthropic
-from pydantic import BaseModel, Field
+import httpx
+from pydantic import BaseModel, Field, ValidationError
 
 from dxp.files import write_atomic
 from dxp.schema import Ato
 
-MODEL = "claude-haiku-5-5"
-USD_PER_MTOK = {"claude-haiku-5-5": (0.10, 0.50)}
+URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "anthropic/claude-opus-5.5"
+USD_PER_MTOK = {"anthropic/claude-opus-5.5": (4.0, 20.0)}
 CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "llm_cache"
 
 PROMPT = """Você extrai dados de extratos de contrato publicados em diários oficiais municipais.
@@ -33,6 +35,11 @@ Nunca a data de início da vigência."""
 PROMPT_VERSION = hashlib.sha256(PROMPT.encode()).hexdigest()[:8]
 
 
+def strict_schema() -> dict:
+    schema = Ato.model_json_schema()
+    return {**schema, "required": list(schema["properties"]), "additionalProperties": False}
+
+
 class Call(BaseModel):
     ato: Ato | None = None
     input_tokens: int = 0
@@ -47,15 +54,16 @@ class Call(BaseModel):
 
 
 class LLMExtractor:
-    def __init__(self, client=None, model: str = MODEL, cache_dir: Path = CACHE_DIR) -> None:
-        self._client = client
+    def __init__(self, http: httpx.Client | None = None, model: str = MODEL, cache_dir: Path = CACHE_DIR):
+        self._http = http
         self.model = model
-        self.cache_dir = cache_dir / model
+        self.cache_dir = cache_dir / model.replace("/", "_")
         self.calls: list[Call] = []
 
     @cached_property
-    def client(self):
-        return self._client or anthropic.Anthropic()
+    def http(self) -> httpx.Client:
+        token = os.environ.get("OPENROUTER_API_KEY", "")
+        return self._http or httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=180)
 
     def __call__(self, text: str) -> Ato:
         return self.extract(text).ato or Ato(tipo="outro")
@@ -67,31 +75,38 @@ class LLMExtractor:
             call = Call.model_validate_json(path.read_text(encoding="utf-8"))
         else:
             call = self._request(text)
-            write_atomic(path, call.model_dump_json())
+            if call.error is None:
+                write_atomic(path, call.model_dump_json())
         call.problems = call.ato.problems() if call.ato else [call.error]
         self.calls.append(call)
         return call
 
     def _request(self, text: str) -> Call:
+        body = {
+            "model": self.model,
+            "max_tokens": 4000,
+            "reasoning": {"effort": "low"},
+            "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": text}],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": "ato", "strict": True, "schema": strict_schema()},
+            },
+        }
         start = time.perf_counter()
         try:
-            response = self.client.messages.parse(
-                model=self.model,
-                max_tokens=4000,
-                system=PROMPT,
-                messages=[{"role": "user", "content": text}],
-                output_format=Ato,
-            )
-        except anthropic.AnthropicError as error:
-            return Call(seconds=time.perf_counter() - start, error=repr(error))
-        finished = response.stop_reason == "end_turn"
-        return Call(
-            ato=response.parsed_output if finished else None,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
-            seconds=time.perf_counter() - start,
-            error=None if finished else f"stop_reason={response.stop_reason}",
-        )
+            data = self.http.post(URL, json=body).raise_for_status().json()
+            choice, usage = data["choices"][0], data["usage"]
+            tokens = {"input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"]}
+            if choice["finish_reason"] != "stop":
+                return Call(
+                    **tokens,
+                    seconds=time.perf_counter() - start,
+                    error=f"finish_reason={choice['finish_reason']}",
+                )
+            ato = Ato.model_validate_json(choice["message"]["content"])
+        except (httpx.HTTPError, KeyError, ValidationError) as error:
+            return Call(seconds=time.perf_counter() - start, error=repr(error)[:300])
+        return Call(ato=ato, **tokens, seconds=time.perf_counter() - start)
 
 
 def usage_report(calls: list[Call], model: str = MODEL) -> dict:

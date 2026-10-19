@@ -1,7 +1,16 @@
 import csv
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
+
+
+def load_env(path: Path) -> None:
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, sep, value = line.partition("=")
+            if sep and not key.lstrip().startswith("#"):
+                os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
 def write_atomic(path: Path, text: str) -> None:
