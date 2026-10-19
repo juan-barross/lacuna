@@ -3,23 +3,23 @@
 [![ci](https://github.com/juan-barross/lacuna/actions/workflows/ci.yml/badge.svg)](https://github.com/juan-barross/lacuna/actions/workflows/ci.yml)
 [![Abrir o painel](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://lacuna.streamlit.app)
 
-**Um em cada três extratos de contrato publicados nos diários oficiais de 13 municípios do RJ não tem registro correspondente no Portal Nacional de Contratações Públicas (PNCP).**
+Um em cada três extratos de contrato publicados nos diários oficiais de 13 municípios do RJ não tem registro correspondente no Portal Nacional de Contratações Públicas (PNCP).
 
-O Lacuna lê os diários pelo [Querido Diário](https://queridodiario.ok.org.br/), separa os extratos de contrato, extrai empresa, CNPJ, valor e data, e procura cada um entre os contratos que as prefeituras registraram no [PNCP](https://pncp.gov.br/). Um extrato sem par é tratado como **lacuna de dados**, não como irregularidade.
+O Lacuna lê os diários pelo [Querido Diário](https://queridodiario.ok.org.br/), separa os extratos de contrato, extrai empresa, CNPJ, valor e data, e procura cada extrato entre os contratos que as prefeituras registraram no [PNCP](https://pncp.gov.br/). Um extrato sem par é tratado como lacuna de dados: ele mostra que a informação não chegou ao portal federal e não diz nada sobre a legalidade do contrato.
 
-**[Ver o painel](https://lacuna.streamlit.app)**
+[Ver o painel](https://lacuna.streamlit.app)
 
 [![Painel do Lacuna](docs/painel.jpg)](https://lacuna.streamlit.app)
 
 ## Resultado
 
-Outubro de 2025 a setembro de 2026. 3.877 extratos de contrato lidos, 2.649 elegíveis (contrato com fornecedor e valor identificado) e 8.373 contratos municipais baixados do PNCP.
+O período vai de outubro de 2025 a setembro de 2026. Foram lidos 3.877 extratos de contrato, dos quais 2.649 são elegíveis (contrato com fornecedor e valor identificado), e baixados 8.373 contratos municipais do PNCP.
 
 | | Extratos | % |
 |---|---:|---:|
 | Com par no PNCP | 1.676 | 63% |
-| Provável (valor e data batem, nome não confirma) | 141 | 5% |
-| **Sem par no PNCP** | **832** | **31%** |
+| Provável (valor e data batem, o nome não confirma) | 141 | 5% |
+| Sem par no PNCP | 832 | 31% |
 
 Por município, com intervalo de confiança de 95% (Wilson):
 
@@ -38,9 +38,9 @@ Por município, com intervalo de confiança de 95% (Wilson):
 | Nova Iguaçu | 126 | 37% | 29% a 46% |
 | Belford Roxo | 71 | 4% | 1% a 12% |
 
-Belford Roxo publicou 71 extratos elegíveis no diário e registrou só 52 contratos no PNCP no mesmo período.
+Belford Roxo publicou 71 extratos elegíveis no diário e registrou 52 contratos no PNCP no mesmo período.
 
-Outros 6 municípios (Mesquita, Miguel Pereira, Quatis, Queimados, São João de Meriti e São Pedro da Aldeia) não entram na taxa: o Querido Diário não tem o texto de nenhum diário deles, só o link para o PDF no site da prefeitura. É uma lacuna antes mesmo de chegar ao PNCP.
+Outros 6 municípios (Mesquita, Miguel Pereira, Quatis, Queimados, São João de Meriti e São Pedro da Aldeia) ficam fora da taxa porque o Querido Diário não tem o texto de nenhum diário deles, só o link para o PDF no site da prefeitura.
 
 ## Como funciona
 
@@ -50,27 +50,33 @@ Querido Diário ──> diários (texto) ──> extratos de contrato ──> ca
 PNCP ──> órgãos municipais de cada cidade ──> contratos de cada órgão ──────────────────┘
 ```
 
-1. **Ingestão** (`qd.py`, `pncp.py`): download com cache em disco, retentativa e espera quando a API limita o ritmo.
-2. **Segmentação** (`segment.py`): cada extrato começa em "EXTRATO DO/DE CONTRATO" e vai até o próximo "EXTRATO".
-3. **Extração** (`regex_baseline.py`, `llm.py`): regex como baseline; Claude Haiku 5.5 com saída estruturada no mesmo esquema (`schema.py`), com cache, custo por documento e latência.
-4. **Conciliação** (`match.py`): mesmo município, valor a 1% e data a 60 dias; o nome da contratada (ou o CNPJ) decide entre casado e provável. Regras e motivos na [ADR 0005](docs/adr/0005-regras-de-conciliacao.md).
-5. **Avaliação** (`evaluation.py`): F1 por campo contra um conjunto ouro rotulado à mão e precisão do casamento numa amostra conferida à mão.
+1. Ingestão (`qd.py`, `pncp.py`): download com cache em disco, retentativa e espera quando a API limita o ritmo.
+2. Segmentação (`segment.py`): cada extrato começa em "EXTRATO DO/DE CONTRATO" e vai até o próximo "EXTRATO".
+3. Extração (`regex_baseline.py`, `llm.py`): um baseline de regex e o Claude Opus 5.5 pelo OpenRouter, com saída estruturada no mesmo esquema (`schema.py`). As respostas do LLM ficam em cache, com custo e latência de cada chamada.
+4. Conciliação (`match.py`): mesmo município, valor a 1% e data a 60 dias; o nome da contratada (ou o CNPJ) decide entre casado e provável. As regras estão na [ADR 0005](docs/adr/0005-regras-de-conciliacao.md).
+5. Avaliação (`evaluation.py`): F1 por campo contra um conjunto ouro rotulado à mão e precisão do casamento numa amostra conferida à mão.
 
 ## O que deu errado no caminho
 
-Cada item virou um teste.
+Cada caso abaixo virou um teste.
 
-- **A taxa depende da extração.** Erros no corte do nome da contratada derrubavam o casamento: em Cordeiro o nome engolia "CONTRATO N.º 233/2025" da linha seguinte (taxa de 8% para 52% depois da correção); em Quissamã as partes vêm em "Celebrado entre o Município e a empresa X" (6% para 89%); em Macaé o nome vinha grudado em "Macaé, 07 de Outubro de 2025" (56% para 69%).
-- **Valores redondos casavam por coincidência.** R$ 24.000,00 batia com contratos de outras empresas. Com os dois nomes presentes e diferentes, o par agora é descartado.
-- **O CNPJ errado era o do carimbo.** O D.O.Rio repete no meio do texto a assinatura digital da gráfica municipal, com CNPJ. A segmentação tira esse cabeçalho de página.
-- **APIs com armadilhas.** O Querido Diário satura o total em 10.000 resultados e devolve links `s3://` internos desde dez/2025. O PNCP não filtra contratos por município, recusa períodos acima de 365 dias, devolve 204 sem corpo quando não há resultado e bloqueia por ~27 s depois de 30 a 60 pedidos.
-- **Pouca memória.** A máquina tem 4 GB. O Elasticsearch previsto saiu ([ADR 0004](docs/adr/0004-duckdb-no-lugar-do-elasticsearch.md)); a busca usa o BM25 do DuckDB.
+A taxa depende muito da extração do nome. Em Cordeiro, o nome da contratada engolia o "CONTRATO N.º 233/2025" da linha seguinte, e a taxa passou de 8% para 52% depois da correção. Em Quissamã as partes vêm em "Celebrado entre o Município e a empresa X", sem rótulo (de 6% para 89%). Em Macaé o nome vinha grudado em "Macaé, 07 de Outubro de 2025" (de 56% para 69%).
+
+Valores redondos casavam por coincidência: R$ 24.000,00 batia com contratos de outras empresas. Quando os dois nomes existem e são diferentes, o par agora é descartado.
+
+O D.O.Rio repete no meio do texto a assinatura digital da gráfica municipal, com o CNPJ dela, e o regex pegava esse CNPJ como se fosse o da contratada. A segmentação tira esse cabeçalho de página.
+
+As duas APIs têm armadilhas. O Querido Diário satura o total em 10.000 resultados e, desde dezembro de 2025, devolve parte dos links como `s3://` interno. O PNCP não filtra contratos por município, recusa períodos acima de 365 dias, devolve 204 sem corpo quando não há resultado e bloqueia por uns 27 s depois de 30 a 60 pedidos.
+
+A máquina de desenvolvimento tem 4 GB de RAM. O Elasticsearch previsto no começo não coube, e a busca passou a usar o BM25 do DuckDB ([ADR 0004](docs/adr/0004-duckdb-no-lugar-do-elasticsearch.md)).
 
 ## Limitações
 
-- O conjunto ouro (250 trechos, `data/gold/fila.jsonl`) e a conferência dos casamentos (`data/gold/casamentos.csv`) estão preparados, mas ainda não rotulados. Até lá, a qualidade da extração e a precisão do casamento não estão medidas, e a taxa vale como estimativa.
-- Só entram extratos com o cabeçalho padrão. Sumidouro, por exemplo, quase não o usa.
-- Contratação temporária de pessoal (1.216 extratos, quase todos em Saquarema) fica fora, porque não vai para o PNCP.
+O conjunto ouro (250 trechos em `data/gold/fila.jsonl`) e a conferência dos casamentos (`data/gold/casamentos.csv`) estão preparados, mas ainda não foram rotulados. Até lá, a qualidade da extração e a precisão do casamento não estão medidas, e a taxa deve ser lida como estimativa.
+
+O LLM já processou 85 dos 100 trechos do dev, a cerca de US$ 0,012 por trecho. A comparação com o regex depende dos rótulos.
+
+Só entram extratos com o cabeçalho padrão; Sumidouro, por exemplo, quase não o usa. A contratação temporária de pessoal (1.216 extratos, quase todos de Saquarema) fica fora, porque não vai para o PNCP.
 
 ## Como rodar
 
@@ -94,9 +100,10 @@ Avaliação:
 
 ```bash
 dxp amostra                      # sorteia os 250 trechos do conjunto ouro
-streamlit run app/anotar.py      # rotula à mão (guia em docs/guia_anotacao.md)
+streamlit run app/anotar.py      # rotula à mão, seguindo docs/guia_anotacao.md
+dxp llm-fila --split dev         # extrai o dev com o LLM (OPENROUTER_API_KEY no .env)
 dxp avaliar --extrator regex     # F1 por campo no dev
-dxp avaliar --extrator llm       # precisa de ANTHROPIC_API_KEY no .env
+dxp avaliar --extrator llm
 dxp precisao                     # depois de preencher data/gold/casamentos.csv
 ```
 
@@ -106,15 +113,15 @@ dxp precisao                     # depois de preencher data/gold/casamentos.csv
 pytest
 ```
 
-129 testes, sem acesso à internet: respostas gravadas das APIs e um cliente falso do LLM. Um deles roda a CLI inteira de ponta a ponta num diretório temporário.
+São 141 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
 
 ## Decisões
 
-- [0001: recorte RJ, out/2025 a set/2026, e municípios sem texto](docs/adr/0001-recorte-estado-periodo.md)
-- [0002: LLM por API contra modelo local](docs/adr/0002-escolha-do-llm.md)
+- [0001: recorte no RJ, out/2025 a set/2026, e municípios sem texto](docs/adr/0001-recorte-estado-periodo.md)
+- [0002: Claude Opus 5.5 pelo OpenRouter na extração](docs/adr/0002-escolha-do-llm.md)
 - [0004: BM25 no DuckDB no lugar do Elasticsearch](docs/adr/0004-duckdb-no-lugar-do-elasticsearch.md)
 - [0005: regras de conciliação](docs/adr/0005-regras-de-conciliacao.md)
 
 ## Fontes
 
-Querido Diário (Open Knowledge Brasil) e PNCP, API de consultas. Nenhuma das duas declara licença para os dados; o repositório não redistribui o dado bruto, só contagens e os trechos de extratos usados no painel.
+Querido Diário (Open Knowledge Brasil) e API de consultas do PNCP. Nenhuma das duas declara licença para os dados. O repositório não redistribui o dado bruto; guarda só contagens e os trechos de extratos usados no painel.
