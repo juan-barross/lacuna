@@ -49,10 +49,16 @@ class Fetcher:
         return self.backoff * 2**attempt
 
     def get(self, url: str, params: dict | list | None = None) -> httpx.Response:
+        return self.request("GET", url, params=params)
+
+    def post(self, url: str, json: dict) -> httpx.Response:
+        return self.request("POST", url, json=json)
+
+    def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         for attempt in range(self.max_retries + 1):
             last, resp = attempt == self.max_retries, None
             try:
-                resp = self.http.get(url, params=params)
+                resp = self.http.request(method, url, **kwargs)
             except httpx.TransportError as e:
                 if last or not isinstance(e, RETRY_ERRORS):
                     raise FetchError(f"falha de rede em {url}: {e}") from e

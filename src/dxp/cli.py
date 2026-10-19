@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
@@ -100,6 +101,14 @@ def avaliar(args) -> None:
     report.write_text(json.dumps({"campos": result, "uso": usage}, indent=2), encoding="utf-8")
 
 
+def llm_fila(args) -> None:
+    extractor = LLMExtractor()
+    texts = [row["text"] for row in read_jsonl(args.data_dir / "gold" / "fila.jsonl")]
+    with ThreadPoolExecutor(4) as pool:
+        list(pool.map(extractor.extract, texts))
+    print(json.dumps(usage_report(extractor.calls), indent=2))
+
+
 def conciliar(args) -> None:
     processed = args.data_dir / "processed"
     rows, rates = run(
@@ -142,6 +151,7 @@ COMMANDS = {
     "pncp-download": (pncp_download, "baixa os contratos municipais do PNCP"),
     "atos": (atos, "separa os extratos de contrato dos diários"),
     "amostra": (amostra, "sorteia os trechos do conjunto ouro"),
+    "llm-fila": (llm_fila, "extrai com o LLM os trechos do conjunto ouro, em paralelo"),
     "avaliar": (avaliar, "F1 por campo contra o conjunto ouro"),
     "conciliar": (conciliar, "concilia os atos com o PNCP e grava os dados do painel"),
     "precisao": (precisao, "precisão do casamento na amostra conferida à mão"),
