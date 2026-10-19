@@ -66,6 +66,8 @@ def score(gold: Iterable[dict], extract: Callable[[str], Ato]) -> dict[str, dict
 
 
 def write_review(rows: list[dict], path: Path, size: int = 100) -> int:
+    if path.exists():
+        return 0
     matched = sorted((r for r in rows if r["status"] == MATCHED), key=lambda r: r["ato_id"])
     sample = random.Random(SEED).sample(matched, min(size, len(matched)))
     keep = (
