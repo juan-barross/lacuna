@@ -86,7 +86,7 @@ class LLMExtractor:
     def _request(self, text: str) -> Call:
         body = {
             "model": self.model,
-            "max_tokens": 4000,
+            "max_tokens": 1500,
             "reasoning": {"effort": "low"},
             "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": text}],
             "response_format": {

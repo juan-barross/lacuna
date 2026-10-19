@@ -103,8 +103,9 @@ def avaliar(args) -> None:
 
 def llm_fila(args) -> None:
     extractor = LLMExtractor()
-    texts = [row["text"] for row in read_jsonl(args.data_dir / "gold" / "fila.jsonl")]
-    with ThreadPoolExecutor(4) as pool:
+    queue = read_jsonl(args.data_dir / "gold" / "fila.jsonl")
+    texts = [row["text"] for row in queue if row["split"] == args.split]
+    with ThreadPoolExecutor(2) as pool:
         list(pool.map(extractor.extract, texts))
     print(json.dumps(usage_report(extractor.calls), indent=2))
 
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> None:
         command.set_defaults(func=func)
         if name in ("avaliar", "conciliar"):
             command.add_argument("--extrator", choices=EXTRACTORS, default="regex")
-        if name == "avaliar":
+        if name in ("avaliar", "llm-fila"):
             command.add_argument("--split", choices=["dev", "test"], default="dev")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
