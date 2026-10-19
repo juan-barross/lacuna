@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 
 from dxp import coverage, pncp, qd
 from dxp.evaluation import precision, score, write_queue, write_review
-from dxp.files import read_csv, read_jsonl, write_csv
+from dxp.files import load_env, read_csv, read_jsonl, write_csv
 from dxp.llm import LLMExtractor, usage_report
 from dxp.pipeline import run
 from dxp.regex_baseline import extract as regex_extract
@@ -150,6 +150,7 @@ COMMANDS = {
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env(ROOT / ".env")
     parser = argparse.ArgumentParser(prog="dxp")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     parser.add_argument("-v", "--verbose", action="store_true")
