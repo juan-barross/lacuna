@@ -74,7 +74,20 @@ A máquina de desenvolvimento tem 4 GB de RAM. O Elasticsearch previsto no come�
 
 O conjunto ouro (250 trechos em `data/gold/fila.jsonl`) e a conferência dos casamentos (`data/gold/casamentos.csv`) estão preparados, mas ainda não foram rotulados. Até lá, a qualidade da extração e a precisão do casamento não estão medidas, e a taxa deve ser lida como estimativa.
 
-O LLM já processou 85 dos 100 trechos do dev, a cerca de US$ 0,012 por trecho. A comparação com o regex depende dos rótulos.
+O Opus 5.5 já processou 85 dos 100 trechos do dev, a cerca de US$ 0,012 por trecho. Enquanto os rótulos não existem, dá para medir onde os dois extratores concordam (`dxp concordancia`). Concordância não é acerto, mas mostra onde conferir primeiro:
+
+| Campo | Regex e LLM concordam | Trechos |
+|---|---:|---:|
+| tipo | 92% | 85 |
+| objeto | 92% | 85 |
+| valor | 82% | 84 |
+| número do contrato | 73% | 84 |
+| nome da contratada | 73% | 84 |
+| processo | 67% | 82 |
+| CNPJ da contratada | 60% | 20 |
+| data de assinatura | 58% | 79 |
+
+A data é o campo com mais divergência. Em 22 dos 33 casos o regex não achou data nenhuma, e em 8 as duas datas diferem; nesses, o texto costuma dizer "12 meses a contar da assinatura" sem data, e o regex pega a próxima data que aparece. Modelos gratuitos do OpenRouter também foram testados: o único que respondeu no formato certo trocou "11/09/2025" por "1109-09-20" e ficou de fora.
 
 Só entram extratos com o cabeçalho padrão; Sumidouro, por exemplo, quase não o usa. A contratação temporária de pessoal (1.216 extratos, quase todos de Saquarema) fica fora, porque não vai para o PNCP.
 
@@ -104,6 +117,7 @@ streamlit run app/anotar.py      # rotula à mão, seguindo docs/guia_anotacao.m
 dxp llm-fila --split dev         # extrai o dev com o LLM (OPENROUTER_API_KEY no .env)
 dxp avaliar --extrator regex     # F1 por campo no dev
 dxp avaliar --extrator llm
+dxp concordancia               # regex x LLM nos trechos com resposta em cache
 dxp precisao                     # depois de preencher data/gold/casamentos.csv
 ```
 
@@ -113,7 +127,7 @@ dxp precisao                     # depois de preencher data/gold/casamentos.csv
 pytest
 ```
 
-São 141 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
+São 142 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
 
 ## Decisões
 
