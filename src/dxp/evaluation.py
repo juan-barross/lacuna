@@ -65,6 +65,21 @@ def score(gold: Iterable[dict], extract: Callable[[str], Ato]) -> dict[str, dict
     return {field: prf(c) for field, c in counts.items()}
 
 
+def agreement(texts: Iterable[str], first: Callable[[str], Ato], second: Callable[[str], Ato]) -> dict:
+    counts = {f: Counter() for f in FIELDS}
+    for text in texts:
+        a, b = first(text).model_dump(), second(text).model_dump()
+        for field in FIELDS:
+            if a[field] is None and b[field] is None:
+                continue
+            both = a[field] is not None and b[field] is not None
+            counts[field].update(n=1, iguais=both and same(field, a[field], b[field]))
+    return {
+        field: {"concordancia": round(c["iguais"] / c["n"], 3) if c["n"] else None, "n": c["n"]}
+        for field, c in counts.items()
+    }
+
+
 def write_review(rows: list[dict], path: Path, size: int = 100) -> int:
     if path.exists():
         return 0

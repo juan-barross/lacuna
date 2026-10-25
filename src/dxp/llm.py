@@ -70,9 +70,12 @@ class LLMExtractor:
     def __call__(self, text: str) -> Ato:
         return self.extract(text).ato or Ato(tipo="outro")
 
-    def extract(self, text: str) -> Call:
+    def cache_path(self, text: str) -> Path:
         key = hashlib.sha256(f"{self.model}\n{PROMPT_VERSION}\n{text}".encode()).hexdigest()
-        path = self.cache_dir / f"{key}.json"
+        return self.cache_dir / f"{key}.json"
+
+    def extract(self, text: str) -> Call:
+        path = self.cache_path(text)
         if path.exists():
             call = Call.model_validate_json(path.read_text(encoding="utf-8"))
         else:

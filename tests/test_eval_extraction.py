@@ -1,6 +1,6 @@
 import pytest
 
-from dxp.evaluation import prf, same, score
+from dxp.evaluation import agreement, prf, same, score
 from dxp.files import read_jsonl, write_jsonl
 from dxp.schema import Ato
 from dxp.text import fold, token_f1
@@ -84,3 +84,15 @@ def test_jsonl_ida_e_volta(tmp_path):
 
     assert read_jsonl(path) == GOLD
     assert read_jsonl(tmp_path / "nao_existe.jsonl") == []
+
+
+def test_concordancia_ignora_campo_vazio_nos_dois():
+    first = {"A": Ato(tipo="contrato", valor=10.0, objeto="obra"), "B": Ato(tipo="pessoal")}
+    second = {"A": Ato(tipo="contrato", valor=10.0), "B": Ato(tipo="contrato")}
+
+    result = agreement(["A", "B"], first.get, second.get)
+
+    assert result["tipo"] == {"concordancia": 0.5, "n": 2}
+    assert result["valor"] == {"concordancia": 1.0, "n": 1}
+    assert result["objeto"] == {"concordancia": 0.0, "n": 1}
+    assert result["processo"] == {"concordancia": None, "n": 0}
