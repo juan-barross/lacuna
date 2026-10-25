@@ -8,7 +8,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 
 from dxp import coverage, pncp, qd
-from dxp.evaluation import precision, score, write_queue, write_review
+from dxp.evaluation import agreement, precision, score, write_queue, write_review
 from dxp.files import load_env, read_csv, read_jsonl, write_csv
 from dxp.llm import LLMExtractor, usage_report
 from dxp.pipeline import run
@@ -110,6 +110,18 @@ def llm_fila(args) -> None:
     print(json.dumps(usage_report(extractor.calls), indent=2))
 
 
+def concordancia(args) -> None:
+    llm = LLMExtractor()
+    queue = read_jsonl(args.data_dir / "gold" / "fila.jsonl")
+    texts = [r["text"] for r in queue if r["split"] == args.split and llm.cache_path(r["text"]).exists()]
+    result = agreement(texts, regex_extract, llm)
+    print(f"regex x {llm.model} em {len(texts)} trechos do {args.split}")
+    print_table([{"campo": f, **m} for f, m in result.items()], ["campo", "concordancia", "n"])
+    report = REPORTS / f"{date.today()}_concordancia_{args.split}.json"
+    report.parent.mkdir(exist_ok=True)
+    report.write_text(json.dumps({"trechos": len(texts), "campos": result}, indent=2), encoding="utf-8")
+
+
 def conciliar(args) -> None:
     processed = args.data_dir / "processed"
     rows, rates = run(
@@ -154,6 +166,7 @@ COMMANDS = {
     "amostra": (amostra, "sorteia os trechos do conjunto ouro"),
     "llm-fila": (llm_fila, "extrai com o LLM os trechos do conjunto ouro, em paralelo"),
     "avaliar": (avaliar, "F1 por campo contra o conjunto ouro"),
+    "concordancia": (concordancia, "campos em que regex e LLM dão a mesma resposta"),
     "conciliar": (conciliar, "concilia os atos com o PNCP e grava os dados do painel"),
     "precisao": (precisao, "precisão do casamento na amostra conferida à mão"),
     "cobertura": (cobertura, "texto disponível por município"),
@@ -171,7 +184,7 @@ def main(argv: list[str] | None = None) -> None:
         command.set_defaults(func=func)
         if name in ("avaliar", "conciliar"):
             command.add_argument("--extrator", choices=EXTRACTORS, default="regex")
-        if name in ("avaliar", "llm-fila"):
+        if name in ("avaliar", "llm-fila", "concordancia"):
             command.add_argument("--split", choices=["dev", "test"], default="dev")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
