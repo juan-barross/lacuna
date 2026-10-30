@@ -24,7 +24,7 @@ def stratified(rows: list[dict], size: int, seed: int = SEED) -> list[dict]:
     return [row for row in round_robin if row is not None][:size]
 
 
-def write_queue(rows: list[dict], path: Path, size: int = 250, dev_size: int = 100) -> int:
+def write_queue(rows: list[dict], path: Path, size: int = 100, dev_size: int = 40) -> int:
     keep = ("ato_id", "territory_name", "date", "text")
     queue = [
         {**{k: r[k] for k in keep}, "split": "dev" if i < dev_size else "test"}

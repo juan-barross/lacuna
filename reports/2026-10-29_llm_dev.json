@@ -1,0 +1,63 @@
+{
+  "campos": {
+    "tipo": {
+      "precision": 0.925,
+      "recall": 0.925,
+      "f1": 0.925,
+      "support": 40
+    },
+    "numero_contrato": {
+      "precision": 0.825,
+      "recall": 0.8918918918918919,
+      "f1": 0.8571428571428571,
+      "support": 37
+    },
+    "processo": {
+      "precision": 0.7631578947368421,
+      "recall": 0.8529411764705882,
+      "f1": 0.8055555555555555,
+      "support": 34
+    },
+    "contratada_nome": {
+      "precision": 0.85,
+      "recall": 0.918918918918919,
+      "f1": 0.8831168831168831,
+      "support": 37
+    },
+    "contratada_cnpj": {
+      "precision": 0.8333333333333334,
+      "recall": 1.0,
+      "f1": 0.9090909090909091,
+      "support": 5
+    },
+    "objeto": {
+      "precision": 0.925,
+      "recall": 1.0,
+      "f1": 0.961038961038961,
+      "support": 37
+    },
+    "valor": {
+      "precision": 0.8378378378378378,
+      "recall": 0.8857142857142857,
+      "f1": 0.8611111111111112,
+      "support": 35
+    },
+    "data_assinatura": {
+      "precision": 0.8571428571428571,
+      "recall": 0.9375,
+      "f1": 0.8955223880597014,
+      "support": 32
+    }
+  },
+  "uso": {
+    "modelo": "anthropic/claude-opus-5.5",
+    "prompt": "f9d8da20",
+    "chamadas": 40,
+    "erros": 0,
+    "com_problema": 1,
+    "custo_total_usd": 0.553568,
+    "custo_por_documento_usd": 0.013839,
+    "latencia_p50_s": 4.94,
+    "latencia_p95_s": 14.91
+  }
+}

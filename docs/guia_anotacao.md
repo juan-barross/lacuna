@@ -1,6 +1,6 @@
 # Guia de anotação do conjunto ouro
 
-O conjunto ouro tem 250 trechos sorteados de `data/processed/atos.parquet`, alternando entre os municípios para que nenhum formato domine. Os 100 primeiros são o **dev** e os outros 150 são o **teste**.
+O conjunto ouro tem 100 trechos sorteados de `data/processed/atos.parquet`, alternando entre os municípios para que nenhum formato domine. Os 40 primeiros são o **dev** e os outros 60 são o **teste**.
 
 **O teste fica congelado.** Prompts e regras de regex só são ajustados olhando o dev. O teste roda uma vez por versão, e o resultado vai para `reports/`. Se um erro do teste mostrar uma regra nova, a regra entra no guia e é aplicada no dev, nunca corrigida direto no teste.
 
@@ -8,10 +8,14 @@ Para rotular:
 
 ```bash
 dxp amostra
-streamlit run app/anotar.py
+python app/anotar_gradio.py
 ```
 
-O app mostra um trecho por vez e grava cada rótulo em `data/gold/dev.jsonl` ou `data/gold/test.jsonl`. Os campos começam vazios de propósito: preencher a partir da saída do regex ou do LLM puxaria o rótulo para o que o modelo já acha.
+O app mostra um trecho por vez e grava cada rótulo em `data/gold/dev.jsonl` ou `data/gold/test.jsonl`.
+
+**Como este conjunto foi rotulado.** Um LLM (Claude) leu cada trecho seguindo este guia e escreveu um rascunho em `data/gold/rascunho.jsonl`, sem ver a saída do regex nem a do extrator. O app abre cada trecho com o rascunho preenchido, e cada campo foi conferido e corrigido à mão contra o texto antes de salvar. Cada rótulo salvo leva `origem: rascunho_llm_revisado`. Os casos ambíguos vêm marcados com "CONFERIR" na observação.
+
+Isso tem um custo que precisa ficar claro: o rascunho vem da mesma família de modelos do extrator LLM, então erros parecidos podem passar na revisão e favorecer o LLM na comparação com o regex. O app em Streamlit (`app/anotar.py`) continua disponível para rotular do zero, com os campos vazios.
 
 ## Regra geral
 
