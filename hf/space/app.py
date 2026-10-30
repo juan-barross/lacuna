@@ -6,40 +6,34 @@ from pathlib import Path
 import gradio as gr
 import torch
 from peft import PeftModel
-from pydantic import ValidationError
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from dxp.llm import PROMPT
+from dxp.llm import local_messages, parse_answer
 from dxp.regex_baseline import extract as regex_extract
 from dxp.schema import FIELDS, Ato
 
 BASE = "Qwen/Qwen2.5-1.5B-Instruct"
-ADAPTER = os.environ.get("ADAPTER", "SEU_USUARIO_HF/lacuna-extrator-qwen2.5-1.5b-lora")
+ADAPTER = os.environ["ADAPTER"]
+MAX_CHARS = 4000
 EXAMPLES = json.loads((Path(__file__).parent / "exemplos.json").read_text(encoding="utf-8"))
 
 tok = AutoTokenizer.from_pretrained(ADAPTER)
-model = PeftModel.from_pretrained(
-    AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.float32), ADAPTER
-).eval()
+base = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.float32)
+model = PeftModel.from_pretrained(base, ADAPTER).merge_and_unload().eval()
 
 
 def lora_extract(text: str) -> tuple[Ato | None, str]:
-    messages = [{"role": "system", "content": PROMPT}, {"role": "user", "content": text}]
     inputs = tok.apply_chat_template(
-        messages, add_generation_prompt=True, return_tensors="pt", return_dict=True
+        local_messages(text), add_generation_prompt=True, return_tensors="pt", return_dict=True
     )
     with torch.no_grad():
         out = model.generate(**inputs, max_new_tokens=512, do_sample=False, pad_token_id=tok.eos_token_id)
     answer = tok.decode(out[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
-    start, end = answer.find("{"), answer.rfind("}")
-    try:
-        return Ato.model_validate_json(answer[start : end + 1]), answer
-    except ValidationError:
-        return None, answer
+    return parse_answer(answer), answer
 
 
 def compare(text: str):
-    text = text.strip()
+    text = text.strip()[:MAX_CHARS]
     if not text:
         return [], "", "Cole um extrato de contrato."
     start = time.perf_counter()

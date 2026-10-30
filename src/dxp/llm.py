@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import statistics
 import time
@@ -42,6 +43,21 @@ def strict_schema() -> dict:
     return {**schema, "required": list(schema["properties"]), "additionalProperties": False}
 
 
+SCHEMA_TEXT = json.dumps(strict_schema(), ensure_ascii=False)
+LOCAL_PROMPT = f"{PROMPT}\n\nResponda só com um JSON neste esquema:\n{SCHEMA_TEXT}"
+
+
+def local_messages(text: str) -> list[dict]:
+    return [{"role": "system", "content": LOCAL_PROMPT}, {"role": "user", "content": text}]
+
+
+def parse_answer(answer: str) -> Ato | None:
+    try:
+        return Ato.model_validate_json(answer[answer.find("{") : answer.rfind("}") + 1])
+    except ValidationError:
+        return None
+
+
 class Call(BaseModel):
     ato: Ato | None = None
     input_tokens: int = 0
@@ -56,7 +72,9 @@ class Call(BaseModel):
 
 
 class LLMExtractor:
-    def __init__(self, http: httpx.Client | None = None, model=MODEL, cache_dir: Path = CACHE_DIR, **retry):
+    def __init__(
+        self, http: httpx.Client | None = None, model: str = MODEL, cache_dir: Path = CACHE_DIR, **retry
+    ):
         self._http, self._retry = http, {"max_retries": 6, **retry}
         self.model = model
         self.cache_dir = cache_dir / model.replace("/", "_").replace(":", "_")

@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from dxp.files import load_env
-from dxp.llm import MODEL, PROMPT, LLMExtractor, strict_schema, usage_report
+from dxp.llm import MODEL, PROMPT, LLMExtractor, local_messages, parse_answer, strict_schema, usage_report
 from dxp.schema import Ato
 
 ATO = Ato(tipo="contrato", contratada_cnpj="34.075.739/0001-84", valor=10.0)
@@ -149,3 +149,15 @@ def test_limite_de_ritmo_e_retentado(tmp_path):
 
     assert extractor("texto") == ATO
     assert len(sent) == 2
+
+
+def test_prompt_local_traz_o_esquema_e_o_trecho():
+    system, user = local_messages("EXTRATO DO CONTRATO Nº 1/2026")
+
+    assert system["content"].startswith(PROMPT) and '"data_assinatura"' in system["content"]
+    assert user == {"role": "user", "content": "EXTRATO DO CONTRATO Nº 1/2026"}
+
+
+def test_resposta_local_ignora_texto_em_volta_do_json():
+    assert parse_answer(f"```json\n{ATO.model_dump_json()}\n```") == ATO
+    assert parse_answer("não sei") is None
