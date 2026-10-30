@@ -40,7 +40,7 @@ class Fetcher:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc: object) -> None:
+    def __exit__(self, *_: object) -> None:
         self.http.close()
 
     def _wait(self, attempt: int, resp: httpx.Response | None) -> float:

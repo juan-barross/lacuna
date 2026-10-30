@@ -52,9 +52,9 @@ PNCP ──> órgãos municipais de cada cidade ──> contratos de cada órgã
 
 1. Ingestão (`qd.py`, `pncp.py`): download com cache em disco, retentativa e espera quando a API limita o ritmo.
 2. Segmentação (`segment.py`): cada extrato começa em "EXTRATO DO/DE CONTRATO" e vai até o próximo "EXTRATO".
-3. Extração (`regex_baseline.py`, `llm.py`): um baseline de regex e o Claude Opus 5.5 pelo OpenRouter, com saída estruturada no mesmo esquema (`schema.py`). As respostas do LLM ficam em cache, com custo e latência de cada chamada.
+3. Extração (`regex_baseline.py`, `llm.py`): um baseline de regex, o Claude Opus 5.5 e um modelo gratuito (Nemotron 3.5) pelo OpenRouter, com saída estruturada no mesmo esquema (`schema.py`). As respostas dos LLMs ficam em cache, com custo e latência de cada chamada.
 4. Conciliação (`match.py`): mesmo município, valor a 1% e data a 60 dias; o nome da contratada (ou o CNPJ) decide entre casado e provável. As regras estão na [ADR 0005](docs/adr/0005-regras-de-conciliacao.md).
-5. Avaliação (`evaluation.py`): F1 por campo contra um conjunto ouro rotulado à mão e precisão do casamento numa amostra conferida à mão.
+5. Avaliação (`evaluation.py`): F1 por campo contra um conjunto ouro de 100 trechos e precisão do casamento numa amostra de 100 pares conferida à mão (seção [Avaliação](#avaliação)).
 
 ## O que deu errado no caminho
 
@@ -70,24 +70,57 @@ As duas APIs têm armadilhas. O Querido Diário satura o total em 10.000 resulta
 
 A máquina de desenvolvimento tem 4 GB de RAM. O Elasticsearch previsto no começo não coube, e a busca passou a usar o BM25 do DuckDB ([ADR 0004](docs/adr/0004-duckdb-no-lugar-do-elasticsearch.md)).
 
+## Avaliação
+
+A taxa de 31% saiu da extração por **regex**. Para saber o quanto confiar nela, montei um conjunto ouro de 100 trechos sorteados entre os municípios (40 no dev, 60 no teste) e comparei três extratores: o regex, o Claude Opus 5.5 e um modelo gratuito do OpenRouter (Nemotron 3.5).
+
+F1 por campo:
+
+| Campo | Regex (teste, 60) | Nemotron grátis (teste, 60) | Regex (teste, 45) | Opus 5.5 (teste, 45) | Regex (dev, 40) | Opus 5.5 (dev, 40) | Nemotron grátis (dev, 40) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| tipo | 0,93 | 0,98 | 0,93 | 1,00 | 0,88 | 0,97 | 0,90 |
+| número do contrato | 0,78 | 0,84 | 0,77 | 0,94 | 0,80 | 0,89 | 0,82 |
+| processo | 0,82 | 0,82 | 0,80 | 0,90 | 0,73 | 0,84 | 0,80 |
+| nome da contratada | 0,80 | 0,94 | 0,76 | 0,99 | 0,74 | 0,91 | 0,89 |
+| CNPJ da contratada | 0,86 | 0,93 | 0,86 | 1,00 | 0,60 | 0,91 | 0,71 |
+| objeto | 0,95 | 0,97 | 0,93 | 0,98 | 0,91 | 0,99 | 0,99 |
+| valor | 0,91 | 0,96 | 0,88 | 0,96 | 0,83 | 0,93 | 0,95 |
+| data de assinatura | 0,70 | 0,23 | 0,70 | 0,97 | 0,66 | 0,96 | 0,23 |
+
+O Opus só processou 45 dos 60 trechos do teste, então a comparação com ele usa esses 45 nos dois lados. O CNPJ aparece em poucos trechos (5 no dev, 10 a 14 no teste), e o F1 dele varia muito com um acerto a mais ou a menos.
+
+| Extrator | Custo por documento | Latência p50 | Latência p95 |
+|---|---:|---:|---:|
+| Regex | zero | instantâneo | instantâneo |
+| Opus 5.5 | US$ 0,014 | 4,9 s | 14,9 s |
+| Nemotron grátis | zero | 2,2 s | 148 s |
+
+O que os números dizem:
+
+- O Opus ganha do regex em todos os campos. A maior diferença é a data de assinatura (0,97 contra 0,70): o regex pega a primeira data que aparece, que muitas vezes é o início da vigência.
+- Os campos que decidem o casamento com o PNCP são o nome e o valor. No teste, o regex acerta 0,80 do nome e 0,91 do valor. É uma base razoável para a taxa, mas parte dos 31% pode vir de extração errada e não de contrato que falta no portal.
+- O Nemotron grátis acerta o valor e o objeto tão bem quanto o Opus e, no teste, passa o regex em nome (0,94 contra 0,80) e valor (0,96 contra 0,91), mas quase sempre erra a data (0,23 no dev e no teste). Ele lê a data certa e erra a conversão: "04/11/2025" vira "0404-11-20" e "24/06/2026" vira "2462-06-24". O esquema aceita qualquer data válida, então esse erro passa. Uma checagem de faixa de ano resolveria.
+- Em Cordeiro, um extrato diz "R$ 660,00 (seiscentos e sessenta mil reais)". Os três extratores leram 660,00. O valor certo era o do extenso.
+
+**Precisão do casamento.** Dos 100 pares casados conferidos à mão em `data/gold/casamentos.csv`, os 100 estão certos (precisão 100%, IC 95% de 96,3% a 100%). Quando o Lacuna diz que achou o contrato no PNCP, ele acertou. O erro que sobra está do outro lado: extratos que deveriam casar e não casaram, que a precisão não mede.
+
+**Como o conjunto ouro foi rotulado.** Um LLM (Claude) escreveu um rascunho de cada trecho seguindo o [guia de anotação](docs/guia_anotacao.md), sem ver a saída dos extratores, e eu revisei cada um à mão contra o texto, decidindo os casos ambíguos. O rascunho vem da mesma família do Opus, o que pode favorecer o Opus na comparação; os números dele devem ser lidos com essa ressalva.
+
+Para reproduzir:
+
+```bash
+dxp avaliar --extrator regex --split test
+dxp avaliar --extrator llm --split dev
+dxp llm-fila --extrator llm-gratis --split dev   # modelo gratuito, sem custo
+dxp avaliar --extrator llm-gratis --split dev
+dxp llm-fila --extrator llm-gratis --split test
+dxp avaliar --extrator llm-gratis --split test
+dxp precisao
+```
+
 ## Limitações
 
-O conjunto ouro (250 trechos em `data/gold/fila.jsonl`) e a conferência dos casamentos (`data/gold/casamentos.csv`) estão preparados, mas ainda não foram rotulados. Até lá, a qualidade da extração e a precisão do casamento não estão medidas, e a taxa deve ser lida como estimativa.
-
-O Opus 5.5 já processou 85 dos 100 trechos do dev, a cerca de US$ 0,012 por trecho. Enquanto os rótulos não existem, dá para medir onde os dois extratores concordam (`dxp concordancia`). Concordância não é acerto, mas mostra onde conferir primeiro:
-
-| Campo | Regex e LLM concordam | Trechos |
-|---|---:|---:|
-| tipo | 92% | 85 |
-| objeto | 92% | 85 |
-| valor | 82% | 84 |
-| número do contrato | 73% | 84 |
-| nome da contratada | 73% | 84 |
-| processo | 67% | 82 |
-| CNPJ da contratada | 60% | 20 |
-| data de assinatura | 58% | 79 |
-
-A data é o campo com mais divergência. Em 22 dos 33 casos o regex não achou data nenhuma, e em 8 as duas datas diferem; nesses, o texto costuma dizer "12 meses a contar da assinatura" sem data, e o regex pega a próxima data que aparece. Modelos gratuitos do OpenRouter também foram testados: o único que respondeu no formato certo trocou "11/09/2025" por "1109-09-20" e ficou de fora.
+A taxa usa a extração por regex. Pelo conjunto ouro, o regex erra cerca de um em cada cinco nomes, então parte dos 31% pode ser erro de extração.
 
 Só entram extratos com o cabeçalho padrão; Sumidouro, por exemplo, quase não o usa. A contratação temporária de pessoal (1.216 extratos, quase todos de Saquarema) fica fora, porque não vai para o PNCP.
 
@@ -112,8 +145,8 @@ dxp atos && dxp cobertura && dxp conciliar
 Avaliação:
 
 ```bash
-dxp amostra                      # sorteia os 250 trechos do conjunto ouro
-streamlit run app/anotar.py      # rotula à mão, seguindo docs/guia_anotacao.md
+dxp amostra                      # sorteia os 100 trechos do conjunto ouro
+python app/anotar_gradio.py      # revisa os rótulos, seguindo docs/guia_anotacao.md
 dxp llm-fila --split dev         # extrai o dev com o LLM (OPENROUTER_API_KEY no .env)
 dxp avaliar --extrator regex     # F1 por campo no dev
 dxp avaliar --extrator llm

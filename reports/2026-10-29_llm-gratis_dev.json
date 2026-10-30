@@ -1,0 +1,63 @@
+{
+  "campos": {
+    "tipo": {
+      "precision": 0.9,
+      "recall": 0.9,
+      "f1": 0.9,
+      "support": 40
+    },
+    "numero_contrato": {
+      "precision": 0.8205128205128205,
+      "recall": 0.8205128205128205,
+      "f1": 0.8205128205128205,
+      "support": 39
+    },
+    "processo": {
+      "precision": 0.7692307692307693,
+      "recall": 0.8333333333333334,
+      "f1": 0.8,
+      "support": 36
+    },
+    "contratada_nome": {
+      "precision": 0.875,
+      "recall": 0.8974358974358975,
+      "f1": 0.8860759493670887,
+      "support": 39
+    },
+    "contratada_cnpj": {
+      "precision": 0.5555555555555556,
+      "recall": 1.0,
+      "f1": 0.7142857142857143,
+      "support": 5
+    },
+    "objeto": {
+      "precision": 0.975,
+      "recall": 1.0,
+      "f1": 0.9873417721518987,
+      "support": 39
+    },
+    "valor": {
+      "precision": 0.9473684210526315,
+      "recall": 0.9473684210526315,
+      "f1": 0.9473684210526315,
+      "support": 38
+    },
+    "data_assinatura": {
+      "precision": 0.22857142857142856,
+      "recall": 0.23529411764705882,
+      "f1": 0.23188405797101447,
+      "support": 34
+    }
+  },
+  "uso": {
+    "modelo": "nvidia/nemotron-3.5-super-vl:free",
+    "prompt": "f9d8da20",
+    "chamadas": 40,
+    "erros": 0,
+    "com_problema": 4,
+    "custo_total_usd": 0.0,
+    "custo_por_documento_usd": 0.0,
+    "latencia_p50_s": 2.17,
+    "latencia_p95_s": 147.76
+  }
+}

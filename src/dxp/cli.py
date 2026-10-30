@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 from dxp import coverage, pncp, qd
 from dxp.evaluation import agreement, precision, score, write_queue, write_review
 from dxp.files import load_env, read_csv, read_jsonl, write_csv
-from dxp.llm import LLMExtractor, usage_report
+from dxp.llm import FREE_MODEL, LLMExtractor, usage_report
 from dxp.pipeline import run
 from dxp.regex_baseline import extract as regex_extract
 from dxp.segment import build_atos
@@ -22,7 +22,12 @@ REPORTS = ROOT / "reports"
 SINCE, UNTIL = date(2025, 10, 1), date(2026, 9, 30)
 PNCP_SINCE, PNCP_UNTIL = date(2025, 8, 1), date(2026, 10, 14)
 MIN_GAZETTES = 100
-EXTRACTORS = {"regex": lambda: regex_extract, "llm": LLMExtractor}
+EXTRACTORS = {
+    "regex": lambda: regex_extract,
+    "llm": LLMExtractor,
+    "llm-gratis": lambda: LLMExtractor(model=FREE_MODEL),
+}
+LLM_EXTRACTORS = [name for name in EXTRACTORS if name != "regex"]
 
 
 def load_recorte(path: Path = RECORTE) -> list[str]:
@@ -94,7 +99,7 @@ def avaliar(args) -> None:
         [{"campo": f, **m} for f, m in result.items()],
         ["campo", "precision", "recall", "f1", "support"],
     )
-    usage = usage_report(getattr(extractor, "calls", []))
+    usage = usage_report(getattr(extractor, "calls", []), getattr(extractor, "model", None))
     print(json.dumps(usage, indent=2))
     report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
     report.parent.mkdir(exist_ok=True)
@@ -102,12 +107,12 @@ def avaliar(args) -> None:
 
 
 def llm_fila(args) -> None:
-    extractor = LLMExtractor()
+    extractor = EXTRACTORS[args.extrator]()
     queue = read_jsonl(args.data_dir / "gold" / "fila.jsonl")
     texts = [row["text"] for row in queue if row["split"] == args.split]
     with ThreadPoolExecutor(2) as pool:
         list(pool.map(extractor.extract, texts))
-    print(json.dumps(usage_report(extractor.calls), indent=2))
+    print(json.dumps(usage_report(extractor.calls, extractor.model), indent=2))
 
 
 def concordancia(args) -> None:
@@ -184,6 +189,8 @@ def main(argv: list[str] | None = None) -> None:
         command.set_defaults(func=func)
         if name in ("avaliar", "conciliar"):
             command.add_argument("--extrator", choices=EXTRACTORS, default="regex")
+        if name == "llm-fila":
+            command.add_argument("--extrator", choices=LLM_EXTRACTORS, default="llm")
         if name in ("avaliar", "llm-fila", "concordancia"):
             command.add_argument("--split", choices=["dev", "test"], default="dev")
     args = parser.parse_args(argv)

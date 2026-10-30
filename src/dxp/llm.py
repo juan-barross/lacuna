@@ -14,7 +14,8 @@ from dxp.schema import Ato
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-opus-5.5"
-USD_PER_MTOK = {"anthropic/claude-opus-5.5": (4.0, 20.0)}
+FREE_MODEL = "nvidia/nemotron-3.5-super-vl:free"
+USD_PER_MTOK = {MODEL: (4.0, 20.0), FREE_MODEL: (0.0, 0.0)}
 CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "llm_cache"
 
 PROMPT = """Você extrai dados de extratos de contrato publicados em diários oficiais municipais.
@@ -58,7 +59,7 @@ class LLMExtractor:
     def __init__(self, http: httpx.Client | None = None, model=MODEL, cache_dir: Path = CACHE_DIR, **retry):
         self._http, self._retry = http, {"max_retries": 6, **retry}
         self.model = model
-        self.cache_dir = cache_dir / model.replace("/", "_")
+        self.cache_dir = cache_dir / model.replace("/", "_").replace(":", "_")
         self.calls: list[Call] = []
 
     @cached_property
@@ -90,7 +91,7 @@ class LLMExtractor:
         body = {
             "model": self.model,
             "max_tokens": 1500,
-            "reasoning": {"effort": "low"},
+            "reasoning": {"enabled": False} if self.model == FREE_MODEL else {"effort": "low"},
             "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": text}],
             "response_format": {
                 "type": "json_schema",
