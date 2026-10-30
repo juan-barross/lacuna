@@ -25,9 +25,8 @@ def stratified(rows: list[dict], size: int, seed: int = SEED) -> list[dict]:
 
 
 def write_queue(rows: list[dict], path: Path, size: int = 100, dev_size: int = 40) -> int:
-    keep = ("ato_id", "territory_name", "date", "text")
     queue = [
-        {**{k: r[k] for k in keep}, "split": "dev" if i < dev_size else "test"}
+        {**{k: r[k] for k in QUEUE_FIELDS}, "split": "dev" if i < dev_size else "test"}
         for i, r in enumerate(stratified(rows, size))
     ]
     write_jsonl(queue, path)
@@ -80,30 +79,27 @@ def agreement(texts: Iterable[str], first: Callable[[str], Ato], second: Callabl
     }
 
 
+QUEUE_FIELDS = ("ato_id", "territory_name", "date", "text")
+REVIEW_FIELDS = ("ato_id", "contratada_nome", "valor", "data_assinatura", "pncp_fornecedor", "pncp_valor")
+
+
 def write_review(rows: list[dict], path: Path, size: int = 100) -> int:
     if path.exists():
         return 0
     matched = sorted((r for r in rows if r["status"] == MATCHED), key=lambda r: r["ato_id"])
+    if not matched:
+        return 0
     sample = random.Random(SEED).sample(matched, min(size, len(matched)))
-    keep = (
-        "ato_id",
-        "contratada_nome",
-        "valor",
-        "data_assinatura",
-        "pncp_fornecedor",
-        "pncp_valor",
-    )
     review = [
         {
             "municipio": r["territory_name"],
-            **{k: r[k] for k in keep},
+            **{k: r[k] for k in REVIEW_FIELDS},
             "trecho": " ".join(r["text"].split())[:400],
             "correto": "",
         }
         for r in sample
     ]
-    if review:
-        write_csv(review, path)
+    write_csv(review, path)
     return len(review)
 
 

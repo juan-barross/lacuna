@@ -10,11 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from dxp.bm25 import BM25
+from dxp.match import ELIGIBLE, MATCHED, UNMATCHED
 from dxp.text import sort_key
 
 DATA = ROOT / "app" / "data"
 REPO = "https://github.com/juan-barross/lacuna"
-STATUSES = ["casado", "provável", "sem par"]
 PALETTE = {"light": ("#2a78d6", "#eb6834", "#ffffff"), "dark": ("#3987e5", "#d95926", "#0e1117")}
 
 st.set_page_config(page_title="Lacuna", layout="wide")
@@ -49,7 +49,7 @@ def city_axis(order: list[str]) -> alt.Y:
 
 
 coverage, cities, atos = load()
-eligible = atos[atos["status"].isin(STATUSES)]
+eligible = atos[atos["status"].isin(list(ELIGIBLE))]
 
 st.title("Lacuna")
 st.markdown(
@@ -58,8 +58,8 @@ st.markdown(
 )
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Extratos de contrato lidos", f"{len(atos):,}".replace(",", "."))
-c2.metric("Com par no PNCP", f"{(eligible['status'] == 'casado').mean():.0%}", help="casados / elegíveis")
-c3.metric("Sem par no PNCP", f"{(eligible['status'] == 'sem par').mean():.0%}")
+c2.metric("Com par no PNCP", f"{(eligible['status'] == MATCHED).mean():.0%}", help="casados / elegíveis")
+c3.metric("Sem par no PNCP", f"{(eligible['status'] == UNMATCHED).mean():.0%}")
 c4.metric("Municípios sem texto no diário", int((coverage["pct_texto"] == 0).sum()))
 st.caption(
     "Outubro de 2025 a setembro de 2026. Elegível é o extrato de contrato com fornecedor e valor "
@@ -98,7 +98,7 @@ with tab_atos:
     left, mid, right = st.columns([3, 2, 2])
     query = left.text_input("Buscar nos extratos", placeholder="merenda escolar, locação de veículos")
     city = mid.selectbox("Município", ["Todos", *cities["municipio"]])
-    status = right.multiselect("Situação", STATUSES, default=STATUSES)
+    status = right.multiselect("Situação", list(ELIGIBLE), default=list(ELIGIBLE))
 
     shown = atos[atos["status"].isin(status) & ((atos["territory_name"] == city) | (city == "Todos"))]
     if query.strip():

@@ -6,6 +6,7 @@ import httpx
 
 log = logging.getLogger(__name__)
 
+RATE_LIMIT_WAIT = 30.0
 USER_AGENT = "lacuna/0.1 (+https://github.com/juan-barross/lacuna)"
 RETRY_STATUS = {429, 500, 502, 503, 504}
 RETRY_ERRORS = (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError)
@@ -23,7 +24,6 @@ class Fetcher:
         *,
         max_retries: int = 3,
         backoff: float = 2.0,
-        rate_limit_wait: float = 30.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.http = http or httpx.Client(
@@ -34,7 +34,6 @@ class Fetcher:
         )
         self.max_retries = max_retries
         self.backoff = backoff
-        self.rate_limit_wait = rate_limit_wait
         self._sleep = sleep
 
     def __enter__(self):
@@ -45,7 +44,7 @@ class Fetcher:
 
     def _wait(self, attempt: int, resp: httpx.Response | None) -> float:
         if resp is not None and resp.status_code == httpx.codes.TOO_MANY_REQUESTS:
-            return float(resp.headers.get("Retry-After", self.rate_limit_wait))
+            return float(resp.headers.get("Retry-After", RATE_LIMIT_WAIT))
         return self.backoff * 2**attempt
 
     def get(self, url: str, params: dict | list | None = None) -> httpx.Response:

@@ -17,10 +17,10 @@ CONTRATOS_PAGE = 500
 MAX_DAYS = 365
 
 
-def windows(since: date, until: date, days: int = MAX_DAYS) -> list[tuple[date, date]]:
+def windows(since: date, until: date) -> list[tuple[date, date]]:
     out = []
     while since <= until:
-        end = min(since + timedelta(days=days - 1), until)
+        end = min(since + timedelta(days=MAX_DAYS - 1), until)
         out.append((since, end))
         since = end + timedelta(days=1)
     return out
@@ -63,21 +63,14 @@ def iso_date(value: str | None) -> date | None:
 
 
 def flatten(contract: dict, territory_id: str) -> dict:
-    org = contract["orgaoEntidade"]
     return {
         "numero_controle": contract["numeroControlePNCP"],
         "territory_id": territory_id,
-        "orgao_cnpj": org["cnpj"],
-        "orgao_nome": org["razaoSocial"],
         "fornecedor_ni": contract.get("niFornecedor"),
         "fornecedor_nome": contract.get("nomeRazaoSocialFornecedor"),
-        "tipo_pessoa": contract.get("tipoPessoa"),
-        "objeto": contract.get("objetoContrato"),
         "valor_global": contract.get("valorGlobal"),
         "data_assinatura": iso_date(contract.get("dataAssinatura")),
         "data_publicacao": iso_date(contract.get("dataPublicacaoPncp")),
-        "processo": contract.get("processo"),
-        "numero_contrato": contract.get("numeroContratoEmpenho"),
     }
 
 

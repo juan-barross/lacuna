@@ -14,7 +14,8 @@ QUEUE = GOLD / "fila.jsonl"
 DRAFT = GOLD / "rascunho.jsonl"
 GUIDE = (ROOT / "docs" / "guia_anotacao.md").read_text(encoding="utf-8")
 TEXT_FIELDS = ["numero_contrato", "processo", "contratada_nome", "contratada_cnpj", "objeto"]
-BLANK = ["contrato", *[""] * (len(TEXT_FIELDS) + 3)]
+EXTRA_FIELDS = ["valor", "data_assinatura", "observacao"]
+BLANK = ["contrato", *[""] * (len(TEXT_FIELDS) + len(EXTRA_FIELDS))]
 
 
 def drafts() -> dict[str, dict]:

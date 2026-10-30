@@ -80,7 +80,6 @@ def test_gazette_sem_txt_url():
         }
     )
     assert g.txt_url is None
-    assert g.excerpts == []
 
 
 def test_search_envia_parametros_e_le_a_resposta():

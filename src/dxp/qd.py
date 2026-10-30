@@ -3,7 +3,7 @@ import re
 from collections import Counter
 from collections.abc import Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from functools import partial
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 import httpx
 import pyarrow as pa
 import pyarrow.parquet as pq
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 from dxp.fetch import Fetcher, FetchError
 from dxp.files import cached_json, write_atomic
@@ -30,14 +30,9 @@ ONLY_URL = re.compile(r"^\s*https?://\S+\s*$")
 class Gazette(BaseModel):
     territory_id: str
     territory_name: str
-    state_code: str
     date: date
-    scraped_at: datetime
     url: str
     txt_url: str | None = None
-    edition: str | None = None
-    is_extra_edition: bool | None = None
-    excerpts: list[str] = Field(default_factory=list)
 
     @field_validator("url", "txt_url")
     @classmethod
@@ -75,8 +70,8 @@ class QDClient(Fetcher):
         super().__init__(BASE_URL, http, **kw)
         self.page_size = page_size
 
-    def cities(self, level: int = 3) -> list[dict]:
-        return self.get("/cities", params={"levels": level}).json()["cities"]
+    def cities(self) -> list[dict]:
+        return self.get("/cities", params={"levels": 3}).json()["cities"]
 
     def search(
         self, territory_ids: Sequence[str], since: date, until: date, *, offset=0, size=None
@@ -165,7 +160,7 @@ def download(
         error = errors.get(g.gazette_id)
         text = text_path(g).read_text(encoding="utf-8") if g.txt_url and not error else ""
         status = "erro" if error else text_status(text) if g.txt_url else "sem_txt"
-        meta = g.model_dump(exclude={"scraped_at", "state_code", "excerpts"})
+        meta = g.model_dump()
         rows.append(
             {
                 "gazette_id": g.gazette_id,

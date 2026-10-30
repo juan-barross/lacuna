@@ -92,39 +92,42 @@ def amostra(args) -> None:
     print(write_queue(rows, args.data_dir / "gold" / "fila.jsonl"), "trechos")
 
 
+def queue_texts(args) -> list[str]:
+    return [r["text"] for r in read_jsonl(args.data_dir / "gold" / "fila.jsonl") if r["split"] == args.split]
+
+
+def print_fields(result: dict, columns: list[str]) -> None:
+    print_table([{"campo": f, **m} for f, m in result.items()], ["campo", *columns])
+
+
+def write_report(name: str, payload: dict) -> None:
+    REPORTS.mkdir(exist_ok=True)
+    (REPORTS / f"{date.today()}_{name}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def avaliar(args) -> None:
     extractor = EXTRACTORS[args.extrator]()
     result = score(read_jsonl(args.data_dir / "gold" / f"{args.split}.jsonl"), extractor)
-    print_table(
-        [{"campo": f, **m} for f, m in result.items()],
-        ["campo", "precision", "recall", "f1", "support"],
-    )
-    usage = usage_report(getattr(extractor, "calls", []), getattr(extractor, "model", None))
+    print_fields(result, ["precision", "recall", "f1", "support"])
+    usage = usage_report(extractor.calls, extractor.model) if isinstance(extractor, LLMExtractor) else {}
     print(json.dumps(usage, indent=2))
-    report = REPORTS / f"{date.today()}_{args.extrator}_{args.split}.json"
-    report.parent.mkdir(exist_ok=True)
-    report.write_text(json.dumps({"campos": result, "uso": usage}, indent=2), encoding="utf-8")
+    write_report(f"{args.extrator}_{args.split}", {"campos": result, "uso": usage})
 
 
 def llm_fila(args) -> None:
     extractor = EXTRACTORS[args.extrator]()
-    queue = read_jsonl(args.data_dir / "gold" / "fila.jsonl")
-    texts = [row["text"] for row in queue if row["split"] == args.split]
     with ThreadPoolExecutor(2) as pool:
-        list(pool.map(extractor.extract, texts))
+        list(pool.map(extractor.extract, queue_texts(args)))
     print(json.dumps(usage_report(extractor.calls, extractor.model), indent=2))
 
 
 def concordancia(args) -> None:
     llm = LLMExtractor()
-    queue = read_jsonl(args.data_dir / "gold" / "fila.jsonl")
-    texts = [r["text"] for r in queue if r["split"] == args.split and llm.cache_path(r["text"]).exists()]
+    texts = [text for text in queue_texts(args) if llm.cache_path(text).exists()]
     result = agreement(texts, regex_extract, llm)
     print(f"regex x {llm.model} em {len(texts)} trechos do {args.split}")
-    print_table([{"campo": f, **m} for f, m in result.items()], ["campo", "concordancia", "n"])
-    report = REPORTS / f"{date.today()}_concordancia_{args.split}.json"
-    report.parent.mkdir(exist_ok=True)
-    report.write_text(json.dumps({"trechos": len(texts), "campos": result}, indent=2), encoding="utf-8")
+    print_fields(result, ["concordancia", "n"])
+    write_report(f"concordancia_{args.split}", {"trechos": len(texts), "campos": result})
 
 
 def conciliar(args) -> None:
