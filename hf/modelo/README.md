@@ -36,7 +36,9 @@ tok = AutoTokenizer.from_pretrained(adapter)
 model = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(base, dtype=torch.float32), adapter)
 
 texto = "EXTRATO DO CONTRATO Nº 009/2026 ..."
-inputs = tok.apply_chat_template(local_messages(texto), add_generation_prompt=True, return_tensors="pt", return_dict=True)
+inputs = tok.apply_chat_template(
+    local_messages(texto), add_generation_prompt=True, return_tensors="pt", return_dict=True
+)
 out = model.generate(**inputs, max_new_tokens=512, do_sample=False)
 answer = tok.decode(out[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
 ato = parse_answer(answer)

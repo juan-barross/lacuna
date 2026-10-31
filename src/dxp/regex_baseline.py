@@ -106,3 +106,11 @@ def extract(text: str) -> Ato:
         valor=brl(value.group(1)) if value else None,
         data_assinatura=signature_date(text),
     )
+
+
+class RegexExtractor:
+    def __call__(self, text: str) -> Ato:
+        return extract(text)
+
+    def usage(self) -> dict:
+        return {}

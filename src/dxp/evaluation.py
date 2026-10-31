@@ -5,12 +5,15 @@ from itertools import chain, zip_longest
 from pathlib import Path
 
 from dxp.files import read_csv, write_csv, write_jsonl
-from dxp.match import MATCHED, wilson
+from dxp.match import MATCHED
 from dxp.schema import FIELDS, Ato
+from dxp.stats import wilson
 from dxp.text import fold, token_f1
 
 SEED = 2026
 FUZZY_FIELDS = {"objeto": 0.5, "contratada_nome": 0.8}
+QUEUE_FIELDS = ("ato_id", "territory_name", "date", "text")
+REVIEW_FIELDS = ("ato_id", "contratada_nome", "valor", "data_assinatura", "pncp_fornecedor", "pncp_valor")
 
 
 def stratified(rows: list[dict], size: int, seed: int = SEED) -> list[dict]:
@@ -43,44 +46,46 @@ def same(field: str, gold, pred) -> bool:
     return gold == pred
 
 
-def prf(c: Counter) -> dict[str, float]:
-    precision = c["tp"] / (c["tp"] + c["fp"]) if c["tp"] + c["fp"] else 0.0
-    recall = c["tp"] / (c["tp"] + c["fn"]) if c["tp"] + c["fn"] else 0.0
+def precision_recall_f1(counts: Counter) -> dict[str, float]:
+    precision = counts["tp"] / (counts["tp"] + counts["fp"]) if counts["tp"] + counts["fp"] else 0.0
+    recall = counts["tp"] / (counts["tp"] + counts["fn"]) if counts["tp"] + counts["fn"] else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
-    return {"precision": precision, "recall": recall, "f1": f1, "support": c["tp"] + c["fn"]}
+    return {"precision": precision, "recall": recall, "f1": f1, "support": counts["tp"] + counts["fn"]}
+
+
+def count_fields(
+    pairs: Iterable[tuple[dict, dict]], update: Callable[[Counter, str, object, object], None]
+) -> dict[str, Counter]:
+    counts = {field: Counter() for field in FIELDS}
+    for first, second in pairs:
+        for field in FIELDS:
+            update(counts[field], field, first[field], second[field])
+    return counts
+
+
+def count_hits(counts: Counter, field: str, gold: object, predicted: object) -> None:
+    hit = gold is not None and predicted is not None and same(field, gold, predicted)
+    counts.update(tp=hit, fp=predicted is not None and not hit, fn=gold is not None and not hit)
+
+
+def count_agreement(counts: Counter, field: str, first: object, second: object) -> None:
+    if first is None and second is None:
+        return
+    both_present = first is not None and second is not None
+    counts.update(n=1, iguais=both_present and same(field, first, second))
 
 
 def score(gold: Iterable[dict], extract: Callable[[str], Ato]) -> dict[str, dict[str, float]]:
-    counts = {f: Counter() for f in FIELDS}
-    for row in gold:
-        expected, predicted = (
-            Ato.model_validate(row).model_dump(),
-            extract(row["text"]).model_dump(),
-        )
-        for field in FIELDS:
-            g, p = expected[field], predicted[field]
-            hit = g is not None and p is not None and same(field, g, p)
-            counts[field].update(tp=hit, fp=p is not None and not hit, fn=g is not None and not hit)
-    return {field: prf(c) for field, c in counts.items()}
+    pairs = ((Ato.model_validate(row).model_dump(), extract(row["text"]).model_dump()) for row in gold)
+    return {field: precision_recall_f1(c) for field, c in count_fields(pairs, count_hits).items()}
 
 
 def agreement(texts: Iterable[str], first: Callable[[str], Ato], second: Callable[[str], Ato]) -> dict:
-    counts = {f: Counter() for f in FIELDS}
-    for text in texts:
-        a, b = first(text).model_dump(), second(text).model_dump()
-        for field in FIELDS:
-            if a[field] is None and b[field] is None:
-                continue
-            both = a[field] is not None and b[field] is not None
-            counts[field].update(n=1, iguais=both and same(field, a[field], b[field]))
+    pairs = ((first(text).model_dump(), second(text).model_dump()) for text in texts)
     return {
         field: {"concordancia": round(c["iguais"] / c["n"], 3) if c["n"] else None, "n": c["n"]}
-        for field, c in counts.items()
+        for field, c in count_fields(pairs, count_agreement).items()
     }
-
-
-QUEUE_FIELDS = ("ato_id", "territory_name", "date", "text")
-REVIEW_FIELDS = ("ato_id", "contratada_nome", "valor", "data_assinatura", "pncp_fornecedor", "pncp_valor")
 
 
 def write_review(rows: list[dict], path: Path, size: int = 100) -> int:
@@ -103,7 +108,7 @@ def write_review(rows: list[dict], path: Path, size: int = 100) -> int:
     return len(review)
 
 
-def precision(path: Path) -> dict:
+def review_precision(path: Path) -> dict:
     answers = [r["correto"].strip().lower() for r in read_csv(path)]
     checked = [a for a in answers if a in ("s", "n")]
     hits = checked.count("s")

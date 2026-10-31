@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-import statistics
 import time
 from functools import cached_property
 from pathlib import Path
@@ -9,15 +8,22 @@ from pathlib import Path
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
-from dxp.fetch import Fetcher, FetchError
+from dxp.fetch import Fetcher, FetchError, RetryPolicy, new_client
 from dxp.files import write_atomic
 from dxp.schema import Ato
+from dxp.stats import latency_summary
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-opus-5.5"
 FREE_MODEL = "nvidia/nemotron-3.5-super-vl:free"
 USD_PER_MTOK = {MODEL: (4.0, 20.0), FREE_MODEL: (0.0, 0.0)}
+REASONING = {MODEL: {"effort": "low"}, FREE_MODEL: {"enabled": False}}
 CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "llm_cache"
+LLM_TIMEOUT = 180.0
+LLM_RETRY = RetryPolicy(max_retries=6)
+MAX_OUTPUT_TOKENS = 1500
+BODY_CHARS = 200
+ERROR_CHARS = 300
 
 PROMPT = """Você extrai dados de extratos de contrato publicados em diários oficiais municipais.
 
@@ -43,8 +49,13 @@ def strict_schema() -> dict:
     return {**schema, "required": list(schema["properties"]), "additionalProperties": False}
 
 
-SCHEMA_TEXT = json.dumps(strict_schema(), ensure_ascii=False)
+STRICT_SCHEMA = strict_schema()
+SCHEMA_TEXT = json.dumps(STRICT_SCHEMA, ensure_ascii=False)
 LOCAL_PROMPT = f"{PROMPT}\n\nResponda só com um JSON neste esquema:\n{SCHEMA_TEXT}"
+
+
+class MissingApiKeyError(RuntimeError):
+    pass
 
 
 def local_messages(text: str) -> list[dict]:
@@ -71,23 +82,45 @@ class Call(BaseModel):
         return (self.input_tokens * price_in + self.output_tokens * price_out) / 1_000_000
 
 
+def call_from_response(data: dict) -> Call:
+    try:
+        choice, usage = data["choices"][0], data["usage"]
+        tokens = {"input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"]}
+        finish_reason, content = choice["finish_reason"], choice["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        detail = data.get("error", data) if isinstance(data, dict) else data
+        return Call(error=f"resposta sem choices ou usage: {str(detail)[:BODY_CHARS]}")
+    if finish_reason != "stop":
+        return Call(**tokens, error=f"finish_reason={finish_reason}")
+    try:
+        return Call(**tokens, ato=Ato.model_validate_json(content))
+    except ValidationError as error:
+        return Call(**tokens, error=repr(error)[:ERROR_CHARS])
+
+
 class LLMExtractor:
     def __init__(
-        self, http: httpx.Client | None = None, model: str = MODEL, cache_dir: Path = CACHE_DIR, **retry
-    ):
-        self._http, self._retry = http, {"max_retries": 6, **retry}
+        self,
+        http: httpx.Client | None = None,
+        model: str = MODEL,
+        cache_dir: Path = CACHE_DIR,
+        retry: RetryPolicy = LLM_RETRY,
+    ) -> None:
+        self._http = http
+        self._retry = retry
         self.model = model
         self.cache_dir = cache_dir / model.replace("/", "_").replace(":", "_")
         self.calls: list[Call] = []
 
     @cached_property
     def api(self) -> Fetcher:
-        token = os.environ.get("OPENROUTER_API_KEY", "")
-        http = self._http or httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=180)
-        return Fetcher(URL, http, **self._retry)
+        return Fetcher(self._http or self._open_session(), self._retry)
 
     def __call__(self, text: str) -> Ato:
         return self.extract(text).ato or Ato(tipo="outro")
+
+    def usage(self) -> dict:
+        return usage_report(self.calls, self.model)
 
     def cache_path(self, text: str) -> Path:
         key = hashlib.sha256(f"{self.model}\n{PROMPT_VERSION}\n{text}".encode()).hexdigest()
@@ -105,38 +138,45 @@ class LLMExtractor:
         self.calls.append(call)
         return call
 
-    def _request(self, text: str) -> Call:
-        body = {
+    def _open_session(self) -> httpx.Client:
+        token = os.environ.get("OPENROUTER_API_KEY")
+        if not token:
+            raise MissingApiKeyError("defina OPENROUTER_API_KEY no ambiente ou no .env")
+        return new_client(headers={"Authorization": f"Bearer {token}"}, timeout=LLM_TIMEOUT)
+
+    def _body(self, text: str) -> dict:
+        return {
             "model": self.model,
-            "max_tokens": 1500,
-            "reasoning": {"enabled": False} if self.model == FREE_MODEL else {"effort": "low"},
+            "max_tokens": MAX_OUTPUT_TOKENS,
+            "reasoning": REASONING[self.model],
             "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": text}],
             "response_format": {
                 "type": "json_schema",
-                "json_schema": {"name": "ato", "strict": True, "schema": strict_schema()},
+                "json_schema": {"name": "ato", "strict": True, "schema": STRICT_SCHEMA},
             },
         }
+
+    def _request(self, text: str) -> Call:
+        api, body = self.api, self._body(text)
         start = time.perf_counter()
+        call = self._post(api, body)
+        call.seconds = time.perf_counter() - start
+        return call
+
+    def _post(self, api: Fetcher, body: dict) -> Call:
         try:
-            data = self.api.post(URL, json=body).json()
-            choice, usage = data["choices"][0], data["usage"]
-            tokens = {"input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"]}
-            if choice["finish_reason"] != "stop":
-                return Call(
-                    **tokens,
-                    seconds=time.perf_counter() - start,
-                    error=f"finish_reason={choice['finish_reason']}",
-                )
-            ato = Ato.model_validate_json(choice["message"]["content"])
-        except (FetchError, httpx.HTTPError, KeyError, ValidationError) as error:
-            return Call(seconds=time.perf_counter() - start, error=repr(error)[:300])
-        return Call(ato=ato, **tokens, seconds=time.perf_counter() - start)
+            data = api.post(URL, json=body).json()
+        except httpx.HTTPStatusError as error:
+            response = error.response
+            return Call(error=f"HTTP {response.status_code}: {response.text[:BODY_CHARS]}")
+        except (FetchError, httpx.HTTPError, json.JSONDecodeError) as error:
+            return Call(error=repr(error)[:ERROR_CHARS])
+        return call_from_response(data)
 
 
 def usage_report(calls: list[Call], model: str = MODEL) -> dict:
     if not calls:
         return {}
-    latencies = sorted(c.seconds for c in calls)
     total = sum(c.cost(model) for c in calls)
     return {
         "modelo": model,
@@ -146,6 +186,5 @@ def usage_report(calls: list[Call], model: str = MODEL) -> dict:
         "com_problema": sum(bool(c.problems) for c in calls),
         "custo_total_usd": round(total, 6),
         "custo_por_documento_usd": round(total / len(calls), 6),
-        "latencia_p50_s": round(statistics.median(latencies), 2),
-        "latencia_p95_s": round(latencies[int(0.95 * (len(latencies) - 1))], 2),
+        **latency_summary([c.seconds for c in calls]),
     }

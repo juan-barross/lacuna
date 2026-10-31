@@ -1,6 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch
-transformers>=4.56
-peft>=0.13
-accelerate
+torch==2.15.0
+transformers==5.22.1
+peft==0.21.2
+accelerate==1.15.0
 lacuna @ git+https://github.com/juan-barross/lacuna

@@ -1,8 +1,8 @@
 import bisect
-import math
 from collections import defaultdict
 from datetime import date
 
+from dxp.stats import wilson
 from dxp.text import sort_key, token_f1
 
 VALUE_TOLERANCE = 0.01
@@ -14,15 +14,6 @@ CONFLICT_THRESHOLD = 0.3
 MATCHED, PROBABLE, UNMATCHED = "casado", "provável", "sem par"
 OUT_OF_SCOPE, NO_VALUE = "fora do escopo", "sem valor"
 ELIGIBLE = (MATCHED, PROBABLE, UNMATCHED)
-
-
-def wilson(hits: int, n: int, z: float = 1.96) -> tuple[float, float]:
-    if not n:
-        return 0.0, 0.0
-    p = hits / n
-    center = (p + z * z / (2 * n)) / (1 + z * z / n)
-    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
-    return max(0.0, center - margin), min(1.0, center + margin)
 
 
 def contract_date(contract: dict) -> date:
@@ -83,16 +74,19 @@ def reconcile(atos: list[dict], contracts: list[dict]) -> list[dict]:
 
 def rates_by_city(rows: list[dict]) -> list[dict]:
     by_city = defaultdict(list)
+    names = {}
     for row in rows:
-        by_city[row["territory_name"]].append(row["status"])
+        by_city[row["territory_id"]].append(row["status"])
+        names[row["territory_id"]] = row["territory_name"]
     out = []
-    for city, statuses in sorted(by_city.items(), key=lambda kv: sort_key(kv[0])):
+    for territory_id, statuses in sorted(by_city.items(), key=lambda kv: sort_key(names[kv[0]])):
         eligible = [s for s in statuses if s in ELIGIBLE]
         matched = eligible.count(MATCHED)
         low, high = wilson(matched, len(eligible))
         out.append(
             {
-                "municipio": city,
+                "territory_id": territory_id,
+                "municipio": names[territory_id],
                 "atos": len(statuses),
                 "elegiveis": len(eligible),
                 "casados": matched,

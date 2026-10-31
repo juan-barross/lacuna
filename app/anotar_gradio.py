@@ -5,7 +5,7 @@ from pathlib import Path
 import gradio as gr
 from pydantic import ValidationError
 
-from dxp.files import read_jsonl
+from dxp.files import read_jsonl, read_jsonl_or_empty
 from dxp.schema import Ato
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,7 @@ BLANK = ["contrato", *[""] * (len(TEXT_FIELDS) + len(EXTRA_FIELDS))]
 
 
 def drafts() -> dict[str, dict]:
-    return {r["ato_id"]: r for r in read_jsonl(DRAFT)}
+    return {r["ato_id"]: r for r in read_jsonl_or_empty(DRAFT)}
 
 
 def br_number(value: float | None) -> str:
@@ -45,7 +45,7 @@ def to_date(raw: str) -> str | None:
 
 def pending() -> tuple[dict | None, str]:
     queue = read_jsonl(QUEUE)
-    done = {r["ato_id"] for split in ("dev", "test") for r in read_jsonl(GOLD / f"{split}.jsonl")}
+    done = {r["ato_id"] for split in ("dev", "test") for r in read_jsonl_or_empty(GOLD / f"{split}.jsonl")}
     rest = [r for r in queue if r["ato_id"] not in done]
     progress = f"**{len(done)} de {len(queue)} rotulados**"
     return (rest[0] if rest else None), progress

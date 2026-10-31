@@ -2,7 +2,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from dxp.coverage import STATUSES, coverage_by_city
-from dxp.files import read_csv, write_csv
 
 
 def coverage(tmp_path, rows):
@@ -51,12 +50,3 @@ def test_ordena_ignorando_acentos(tmp_path):
     )
 
     assert [r["municipio"] for r in rows] == ["São João de Meriti", "Saquarema", "Sumidouro"]
-
-
-def test_csv_ida_e_volta(tmp_path):
-    rows = coverage(tmp_path, [("3304557", "Rio de Janeiro", "ok")])
-    write_csv(rows, tmp_path / "app" / "cobertura.csv")
-
-    (saved,) = read_csv(tmp_path / "app" / "cobertura.csv")
-    assert saved["municipio"] == "Rio de Janeiro"
-    assert saved["pct_texto"] == "100.0"

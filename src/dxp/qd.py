@@ -3,18 +3,19 @@ import re
 from collections import Counter
 from collections.abc import Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date
 from functools import partial
 from pathlib import Path, PurePosixPath
+from typing import Self
 from urllib.parse import urlparse
 
 import httpx
-import pyarrow as pa
-import pyarrow.parquet as pq
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from dxp.fetch import Fetcher, FetchError
-from dxp.files import cached_json, write_atomic
+from dxp.fetch import DEFAULT_RETRY, Fetcher, FetchError, RetryPolicy, new_client
+from dxp.files import cached_json, path_inside, short_hash, write_atomic, write_parquet
+from dxp.ids import ALPHANUMERIC_ID, TERRITORY_ID, checked_id
+from dxp.period import Period
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +35,11 @@ class Gazette(BaseModel):
     url: str
     txt_url: str | None = None
 
+    @field_validator("territory_id")
+    @classmethod
+    def _valid_territory_id(cls, territory_id: str) -> str:
+        return checked_id(TERRITORY_ID, territory_id, "territory_id")
+
     @field_validator("url", "txt_url")
     @classmethod
     def _public_url(cls, url: str | None) -> str | None:
@@ -41,20 +47,18 @@ class Gazette(BaseModel):
             return PUBLIC_FILES + url.removeprefix(S3_PREFIX)
         return url
 
+    @model_validator(mode="after")
+    def _valid_file_hash(self) -> Self:
+        checked_id(ALPHANUMERIC_ID, self.file_hash, "hash do arquivo do diário")
+        return self
+
+    @property
+    def file_hash(self) -> str:
+        return PurePosixPath(urlparse(self.url).path).stem
+
     @property
     def gazette_id(self) -> str:
-        file_hash = PurePosixPath(urlparse(self.url).path).stem
-        return f"{self.territory_id}_{self.date.isoformat()}_{file_hash}"
-
-
-def month_windows(since: date, until: date) -> list[tuple[date, date]]:
-    windows = []
-    while since <= until:
-        next_month = (since.replace(day=1) + timedelta(days=32)).replace(day=1)
-        end = min(next_month - timedelta(days=1), until)
-        windows.append((since, end))
-        since = end + timedelta(days=1)
-    return windows
+        return f"{self.territory_id}_{self.date.isoformat()}_{self.file_hash}"
 
 
 def text_status(text: str) -> str:
@@ -66,19 +70,25 @@ def text_status(text: str) -> str:
 
 
 class QDClient(Fetcher):
-    def __init__(self, http: httpx.Client | None = None, *, page_size: int = PAGE_SIZE, **kw):
-        super().__init__(BASE_URL, http, **kw)
+    def __init__(
+        self,
+        http: httpx.Client | None = None,
+        *,
+        page_size: int = PAGE_SIZE,
+        retry: RetryPolicy = DEFAULT_RETRY,
+    ) -> None:
+        super().__init__(http or new_client(BASE_URL), retry)
         self.page_size = page_size
 
     def cities(self) -> list[dict]:
         return self.get("/cities", params={"levels": 3}).json()["cities"]
 
     def search(
-        self, territory_ids: Sequence[str], since: date, until: date, *, offset=0, size=None
+        self, territory_ids: Sequence[str], period: Period, *, offset: int = 0, size: int | None = None
     ) -> tuple[int, list[Gazette]]:
         params = [("territory_ids", t) for t in territory_ids] + [
-            ("published_since", since.isoformat()),
-            ("published_until", until.isoformat()),
+            ("published_since", period.since.isoformat()),
+            ("published_until", period.until.isoformat()),
             ("size", self.page_size if size is None else size),
             ("offset", offset),
             ("sort_by", "ascending_date"),
@@ -86,22 +96,21 @@ class QDClient(Fetcher):
         data = self.get("/gazettes", params=params).json()
         return data["total_gazettes"], [Gazette.model_validate(g) for g in data["gazettes"]]
 
-    def iter_gazettes(self, territory_ids: Sequence[str], since: date, until: date) -> Iterator[Gazette]:
+    def iter_gazettes(self, territory_ids: Sequence[str], period: Period) -> Iterator[Gazette]:
         seen = set()
-        for start, end in month_windows(since, until):
-            for g in self._window(territory_ids, start, end):
-                if g.gazette_id not in seen:
-                    seen.add(g.gazette_id)
-                    yield g
+        for month in period.monthly():
+            for gazette in self._window(territory_ids, month):
+                if gazette.gazette_id not in seen:
+                    seen.add(gazette.gazette_id)
+                    yield gazette
 
-    def _window(self, territory_ids: Sequence[str], since: date, until: date) -> Iterator[Gazette]:
-        total, page = self.search(territory_ids, since, until)
+    def _window(self, territory_ids: Sequence[str], period: Period) -> Iterator[Gazette]:
+        total, page = self.search(territory_ids, period)
         if total >= RESULT_CAP:
-            if since == until:
-                raise FetchError(f"{since}: mais de {RESULT_CAP} diários num único dia")
-            mid = since + (until - since) // 2
-            yield from self._window(territory_ids, since, mid)
-            yield from self._window(territory_ids, mid + timedelta(days=1), until)
+            if period.is_single_day:
+                raise FetchError(f"{period.since}: mais de {RESULT_CAP} diários num único dia")
+            for half in period.halves():
+                yield from self._window(territory_ids, half)
             return
         received = 0
         while page:
@@ -109,12 +118,14 @@ class QDClient(Fetcher):
             received += len(page)
             if received >= total:
                 break
-            _, page = self.search(territory_ids, since, until, offset=received)
+            _, page = self.search(territory_ids, period, offset=received)
         if received < total:
-            log.warning("%s a %s: API informou %d diários, vieram %d", since, until, total, received)
+            raise FetchError(
+                f"{period.since} a {period.until}: API informou {total} diários, vieram {received}"
+            )
 
-    def listing(self, territory_ids: Sequence[str], since: date, until: date) -> list[dict]:
-        return [g.model_dump(mode="json") for g in self.iter_gazettes(territory_ids, since, until)]
+    def listing(self, territory_ids: Sequence[str], period: Period) -> list[dict]:
+        return [g.model_dump(mode="json") for g in self.iter_gazettes(territory_ids, period)]
 
     def fetch_text(self, gazette: Gazette) -> str:
         if not gazette.txt_url:
@@ -122,56 +133,67 @@ class QDClient(Fetcher):
         return self.get(gazette.txt_url).text
 
 
-def download(
-    client: QDClient,
-    territory_ids: Sequence[str],
-    since: date,
-    until: date,
-    data_dir: Path,
-    workers=4,
-) -> Counter:
-    raw = data_dir / "raw" / "qd"
-    gazettes = [
+def text_path(raw: Path, gazette: Gazette) -> Path:
+    return path_inside(raw / "txt", gazette.territory_id, f"{gazette.gazette_id}.txt")
+
+
+def listing_path(raw: Path, territory_ids: Sequence[str], month: Period) -> Path:
+    key = short_hash(*sorted(territory_ids), month.since, month.until)
+    return raw / "gazettes" / f"{month.since:%Y-%m}_{key}.json"
+
+
+def load_gazettes(client: QDClient, territory_ids: Sequence[str], period: Period, raw: Path) -> list[Gazette]:
+    return [
         Gazette.model_validate(item)
-        for start, end in month_windows(since, until)
+        for month in period.monthly()
         for item in cached_json(
-            raw / "gazettes" / f"{start:%Y-%m}.json",
-            partial(client.listing, territory_ids, start, end),
+            listing_path(raw, territory_ids, month), partial(client.listing, territory_ids, month)
         )
     ]
 
-    def text_path(g: Gazette) -> Path:
-        return raw / "txt" / g.territory_id / f"{g.gazette_id}.txt"
 
-    def fetch(g: Gazette) -> str | None:
-        try:
-            write_atomic(text_path(g), client.fetch_text(g))
-        except (FetchError, httpx.HTTPError, OSError) as error:
-            log.error("%s: %s", g.gazette_id, error)
-            return str(error)
-        return None
+def fetch_text(client: QDClient, raw: Path, gazette: Gazette) -> tuple[str, str | None]:
+    try:
+        write_atomic(text_path(raw, gazette), client.fetch_text(gazette))
+    except (FetchError, httpx.HTTPError, OSError) as error:
+        log.warning("%s: %r", gazette.gazette_id, error)
+        return gazette.gazette_id, repr(error)
+    return gazette.gazette_id, None
 
-    missing = [g for g in gazettes if g.txt_url and not text_path(g).exists()]
+
+def fetch_missing_texts(client: QDClient, raw: Path, gazettes: list[Gazette], workers: int) -> dict[str, str]:
+    missing = [g for g in gazettes if g.txt_url and not text_path(raw, g).exists()]
     with ThreadPoolExecutor(workers) as pool:
-        errors = {g.gazette_id: e for g, e in zip(missing, pool.map(fetch, missing), strict=True) if e}
+        results = pool.map(partial(fetch_text, client, raw), missing)
+        return {gazette_id: error for gazette_id, error in results if error}
 
-    rows = []
-    for g in gazettes:
-        error = errors.get(g.gazette_id)
-        text = text_path(g).read_text(encoding="utf-8") if g.txt_url and not error else ""
-        status = "erro" if error else text_status(text) if g.txt_url else "sem_txt"
-        meta = g.model_dump()
-        rows.append(
-            {
-                "gazette_id": g.gazette_id,
-                **meta,
-                "text": text,
-                "text_status": status,
-                "error": error,
-            }
-        )
 
-    out = data_dir / "processed" / "qd_gazettes.parquet"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pylist(rows), out)
+def status_of(gazette: Gazette, error: str | None, text: str) -> str:
+    if error:
+        return "erro"
+    if not gazette.txt_url:
+        return "sem_txt"
+    return text_status(text)
+
+
+def build_row(raw: Path, gazette: Gazette, error: str | None) -> dict:
+    has_text = gazette.txt_url and not error
+    text = text_path(raw, gazette).read_text(encoding="utf-8") if has_text else ""
+    return {
+        "gazette_id": gazette.gazette_id,
+        **gazette.model_dump(),
+        "text": text,
+        "text_status": status_of(gazette, error, text),
+        "error": error,
+    }
+
+
+def download(
+    client: QDClient, territory_ids: Sequence[str], period: Period, data_dir: Path, workers: int = 4
+) -> Counter:
+    raw = data_dir / "raw" / "qd"
+    gazettes = load_gazettes(client, territory_ids, period, raw)
+    errors = fetch_missing_texts(client, raw, gazettes, workers)
+    rows = [build_row(raw, g, errors.get(g.gazette_id)) for g in gazettes]
+    write_parquet(rows, data_dir / "processed" / "qd_gazettes.parquet")
     return Counter(r["text_status"] for r in rows)

@@ -36,6 +36,7 @@ packages = ["src/dxp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["slow: abre o painel do Streamlit e leva alguns segundos"]
 
 [tool.ruff]
 line-length = 110
