@@ -73,15 +73,15 @@ F1 por campo no conjunto ouro do Lacuna (60 trechos de teste, rótulos revisados
 | valor |  |  | 0,91 |
 | data de assinatura |  |  | 0,70 |
 
-<!-- preencher com reports/AAAA-MM-DD_qlora_test.json depois do treino -->
-
 As colunas do modelo foram medidas com a base em 4 bits, como no treino. O Space roda a base em fp32, e a diferença não foi medida.
 
-No dev (40 trechos), o Claude Opus 5.5 via API teve F1 de 0,96 na data e 0,91 no nome, a US$ 0,014 por documento.
+No dev (40 trechos), o Claude Opus 5.5 via API teve F1 de 0,96 na data e 0,91 no nome, a US$ 0,014 por documento, medido antes da anonimização dos dados.
 
 ## Limitações
 
 - Os rótulos de treino e o rascunho do conjunto ouro vieram do Claude. O conjunto ouro foi revisado à mão, mas a comparação pode favorecer modelos que escrevem como o Claude.
 - Os 13 municípios do treino são os mesmos da avaliação. Em diários com outro formato, o desempenho deve cair.
+- Treino e avaliação usam os dados anonimizados: nas contratações temporárias o nome virou `Pessoa XXXXXX`. Com o nome e o CPF reais, o modelo pode errar mais o tipo e o nome desses casos.
+- Treino e ouro foram separados por texto e por contrato, não por diário. Dez trechos do ouro têm no treino um trecho do mesmo diário, com cabeçalho e rodapé parecidos.
 - O conjunto de teste é pequeno. O CNPJ aparece em 10 a 14 trechos, e um acerto a mais ou a menos muda bastante o F1.
 - Extrato sem par no PNCP indica que a informação não chegou ao portal federal. Não diz nada sobre a legalidade do contrato.

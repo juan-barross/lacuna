@@ -78,14 +78,16 @@ F1 por campo:
 
 | Campo | Regex (teste, 60) | Nemotron grátis (teste, 60) | Regex (teste, 45) | Opus 5.5 (teste, 45) | Regex (dev, 40) | Opus 5.5 (dev, 40) | Nemotron grátis (dev, 40) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| tipo | 0,93 | 0,98 | 0,93 | 1,00 | 0,88 | 0,97 | 0,90 |
+| tipo | 0,93 | 0,98 | 0,93 | 1,00 | 0,95 | 0,97 | 0,90 |
 | número do contrato | 0,78 | 0,84 | 0,77 | 0,94 | 0,80 | 0,89 | 0,82 |
 | processo | 0,82 | 0,82 | 0,80 | 0,90 | 0,73 | 0,84 | 0,80 |
 | nome da contratada | 0,80 | 0,94 | 0,76 | 0,99 | 0,74 | 0,91 | 0,89 |
 | CNPJ da contratada | 0,86 | 0,93 | 0,86 | 1,00 | 0,60 | 0,91 | 0,71 |
-| objeto | 0,95 | 0,97 | 0,93 | 0,98 | 0,91 | 0,99 | 0,99 |
+| objeto | 0,95 | 0,97 | 0,93 | 0,98 | 0,89 | 0,99 | 0,99 |
 | valor | 0,91 | 0,96 | 0,88 | 0,96 | 0,83 | 0,93 | 0,95 |
 | data de assinatura | 0,70 | 0,23 | 0,70 | 0,97 | 0,66 | 0,96 | 0,23 |
+
+Os LLMs foram avaliados antes da anonimização dos dados pessoais. Refiz o regex depois: no teste nada mudou; no dev o tipo foi de 0,88 para 0,95 e o objeto de 0,91 para 0,89. O tipo subiu porque o regex tomava qualquer CPF no texto como sinal de contratação temporária.
 
 O Opus só processou 45 dos 60 trechos do teste, então a comparação com ele usa esses 45 nos dois lados. O CNPJ aparece em poucos trechos (5 no dev, 10 a 14 no teste), e o F1 dele varia muito com um acerto a mais ou a menos.
 
@@ -140,6 +142,7 @@ O painel usa os dados já incluídos em `app/data/`. Para refazer tudo a partir 
 ```bash
 dxp qd-download && dxp pncp-download
 dxp atos && dxp cobertura && dxp conciliar
+dxp anonimizar                   # mascara CPF, RG, endereço e e-mail pessoal nos arquivos versionados
 ```
 
 Avaliação:

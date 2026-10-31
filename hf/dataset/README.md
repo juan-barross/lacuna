@@ -34,7 +34,7 @@ Trechos de extratos de contrato publicados nos diários oficiais de 13 municípi
 ## Campos
 
 - `ato_id`, `territory_name`: identificador do trecho no Lacuna e município.
-- `text`: o trecho do diário, como veio do Querido Diário.
+- `text`: o trecho do diário, com os dados pessoais mascarados (veja Fonte e licença).
 - `tipo`: `contrato`, `pessoal` (contratação temporária de pessoa física) ou `outro` (não é extrato de contrato).
 - `numero_contrato`, `processo`, `contratada_nome`, `objeto`: texto, como aparece no trecho.
 - `contratada_cnpj`: só letras e dígitos.
@@ -50,4 +50,4 @@ Os trechos de dev e test foram sorteados por município entre os extratos que o 
 
 ## Fonte e licença
 
-Os textos vêm de diários oficiais municipais, que são atos públicos, obtidos pela API do [Querido Diário](https://queridodiario.ok.org.br/) (Open Knowledge Brasil). A API não declara licença para os dados, por isso a licença aqui é `other`. Os trechos trazem nomes de empresas e de pessoas físicas contratadas, publicados pelas próprias prefeituras. Alguns CPFs vêm mascarados na origem, mas o nome de microempreendedores individuais costuma trazer o CPF ou a raiz do CNPJ junto.
+Os textos vêm de diários oficiais municipais, que são atos públicos, obtidos pela API do [Querido Diário](https://queridodiario.ok.org.br/) (Open Knowledge Brasil). A API não declara licença para os dados, por isso a licença aqui é `other`. Os trechos trazem nomes de empresas, de servidores que assinam os atos e de pessoas físicas contratadas, publicados pelas próprias prefeituras. Os CPFs, os RGs, os endereços de pessoas físicas e os e-mails pessoais (gmail, hotmail, yahoo e similares) foram mascarados (`[CPF]`, `RG [RG]`, `[ENDERECO]`, `[EMAIL]`), inclusive os CPFs colados ao nome de microempreendedores individuais. Nas contratações temporárias (`tipo` = `pessoal`), o nome da pessoa foi trocado por um pseudônimo (`Pessoa` e seis caracteres de um hash do nome), o mesmo em todos os arquivos. Nos outros contratos o nome da contratada fica, mesmo quando é pessoa física ou microempreendedor individual, porque é o que o extrator precisa ler. Para pedir a remoção de um trecho, abra uma issue em [github.com/juan-barross/lacuna](https://github.com/juan-barross/lacuna/issues).

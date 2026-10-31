@@ -8,6 +8,7 @@ import pyarrow.parquet as pq
 from dxp.files import write_csv, write_parquet
 from dxp.match import rates_by_city, reconcile
 from dxp.period import Period
+from dxp.privacy import anonymize_row
 from dxp.schema import Ato
 
 INTERNAL_COLUMNS = {
@@ -52,7 +53,8 @@ def publish_reconciliation(
     atos: Path, pncp: Path, extractor: Extractor, period: Period, app_data: Path
 ) -> tuple[list[dict], list[dict]]:
     contracts = pq.read_table(pncp).to_pylist()
-    rows = reconcile_atos(pq.read_table(atos).to_pylist(), contracts, extractor)
+    reconciled = reconcile_atos(pq.read_table(atos).to_pylist(), contracts, extractor)
+    rows = [anonymize_row(row) for row in reconciled]
     failures = extractor.usage().get("erros", 0)
     if failures:
         raise ExtractionFailed(f"{failures} extrações falharam e virariam 'fora do escopo'")

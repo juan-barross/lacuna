@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from dxp import cli
-from dxp.files import read_csv, read_jsonl, write_csv, write_jsonl
+from dxp.files import read_csv, read_jsonl, write_csv, write_jsonl, write_parquet
 from dxp.period import Period
 from dxp.schema import Ato
 
@@ -384,3 +384,42 @@ def test_main_carrega_o_env_do_projeto(monkeypatch, data_dir):
     dxp(data_dir, "cobertura")
 
     assert loaded == [cli.ROOT / ".env"]
+
+
+def test_anonimizar_reescreve_os_arquivos_e_imprime_as_contagens(data_dir, tmp_path, capsys, cpf):
+    write_jsonl(
+        [{"ato_id": "a", "text": f"CPF {cpf}, RG nº 1234567, a@gmail.com"}], data_dir / "gold" / "dev.jsonl"
+    )
+    write_parquet([{"ato_id": "a", "text": f"CPF {cpf}"}], tmp_path / "app" / "atos.parquet")
+
+    dxp(data_dir, "anonimizar")
+
+    assert read_jsonl(data_dir / "gold" / "dev.jsonl") == [
+        {"ato_id": "a", "text": "CPF [CPF], RG [RG], [EMAIL]"}
+    ]
+    assert pq.read_table(tmp_path / "app" / "atos.parquet").column("text").to_pylist() == ["CPF [CPF]"]
+    lines = [line.split() for line in capsys.readouterr().out.splitlines()]
+    assert lines == [["marca", "substituicoes"], ["CPF", "2"], ["EMAIL", "1"], ["RG", "1"]]
+
+
+def test_anonimizar_sem_nada_a_mascarar_diz_que_nao_ha_linhas(data_dir, capsys):
+    dxp(data_dir, "anonimizar")
+
+    assert capsys.readouterr().out == "nenhuma linha\n"
+
+
+def test_amostra_grava_a_fila_ja_anonimizada(data_dir, capsys, cpf):
+    ato = {
+        "ato_id": "g#0",
+        "territory_name": "Rio",
+        "date": date(2025, 10, 1),
+        "text": f"Contratação por tempo determinado. Contratada: Maria Souza Lima, CPF {cpf}.",
+    }
+    pq.write_table(pa.Table.from_pylist([ato]), data_dir / "processed" / "atos.parquet")
+
+    dxp(data_dir, "amostra")
+
+    (row,) = read_jsonl(data_dir / "gold" / "fila.jsonl")
+    assert cpf not in row["text"]
+    assert "Maria Souza Lima" not in row["text"]
+    assert "[CPF]" in row["text"]

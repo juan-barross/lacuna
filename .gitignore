@@ -21,6 +21,7 @@ htmlcov/
 # Dados baixados e derivados (não redistribuímos o dado bruto)
 data/raw/
 data/processed/
+data/llm_cache/
 *.duckdb
 
 # Editor / SO

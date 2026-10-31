@@ -142,3 +142,15 @@ def test_conferencia_ja_preenchida_nao_e_sobrescrita(tmp_path):
 
     assert write_review(rows, path) == 0
     assert read_csv(path) == [{"ato_id": "g#0", "correto": "s"}]
+
+
+def test_painel_e_conferencia_saem_anonimizados(tmp_path, cpf):
+    atos, pncp = write_inputs(tmp_path)
+    ato = {**ATO, "text": f"{TEXT}\nContato: fulano@gmail.com, CPF {cpf}"}
+    pq.write_table(pa.Table.from_pylist([ato]), atos)
+
+    rows, _ = publish_reconciliation(atos, pncp, RegexExtractor(), PERIOD, tmp_path / "app")
+
+    published = pq.read_table(tmp_path / "app" / "atos.parquet").column("text").to_pylist()
+    assert published == [rows[0]["text"]]
+    assert published[0].endswith("Contato: [EMAIL], CPF [CPF]")

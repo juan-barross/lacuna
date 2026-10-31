@@ -11,12 +11,14 @@ from pathlib import Path
 import pyarrow.parquet as pq
 
 from dxp import coverage, pncp, qd
+from dxp.anonymize import anonymize_files, target_files
 from dxp.evaluation import agreement, review_precision, score, write_queue, write_review
 from dxp.files import load_env, read_csv, read_jsonl, write_csv
 from dxp.llm import FREE_MODEL, LLMExtractor
 from dxp.period import Period
 from dxp.pipeline import ExtractionFailed, Extractor, publish_reconciliation
-from dxp.regex_baseline import RegexExtractor
+from dxp.privacy import anonymize_row
+from dxp.regex_baseline import RegexExtractor, extract
 from dxp.segment import build_atos
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -144,7 +146,8 @@ def cmd_segment(args: argparse.Namespace) -> None:
 
 
 def cmd_sample(args: argparse.Namespace) -> None:
-    rows = pq.read_table(args.data_dir / "processed" / "atos.parquet").to_pylist()
+    atos = pq.read_table(args.data_dir / "processed" / "atos.parquet").to_pylist()
+    rows = [anonymize_row({**ato, **extract(ato["text"]).model_dump()}) for ato in atos]
     print(write_queue(rows, args.data_dir / "gold" / "fila.jsonl"), "trechos")
 
 
@@ -198,6 +201,14 @@ def cmd_coverage(args: argparse.Namespace) -> None:
     print_table(rows, ["municipio", "diarios", *coverage.STATUSES, "pct_texto"])
 
 
+def cmd_anonymize(args: argparse.Namespace) -> None:
+    totals = anonymize_files(target_files(args.data_dir, APP_DATA))
+    print_table(
+        [{"marca": mark, "substituicoes": count} for mark, count in sorted(totals.items())],
+        ["marca", "substituicoes"],
+    )
+
+
 COMMANDS = {
     "recorte": Command(lambda _: cmd_scope(), "lista os municípios do RJ e marca os que entram no recorte"),
     "qd-download": Command(cmd_qd_download, "baixa os diários do recorte"),
@@ -216,6 +227,7 @@ COMMANDS = {
     ),
     "precisao": Command(cmd_precision, "precisão do casamento na amostra conferida à mão"),
     "cobertura": Command(cmd_coverage, "texto disponível por município"),
+    "anonimizar": Command(cmd_anonymize, "mascara dados pessoais nos arquivos versionados, no lugar"),
 }
 
 
