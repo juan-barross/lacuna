@@ -142,7 +142,7 @@ O painel usa os dados já incluídos em `app/data/`. Para refazer tudo a partir 
 ```bash
 dxp qd-download && dxp pncp-download
 dxp atos && dxp cobertura && dxp conciliar
-dxp anonimizar                   # mascara CPF, RG, endereço e e-mail pessoal nos arquivos versionados
+dxp anonimizar
 ```
 
 Avaliação:
