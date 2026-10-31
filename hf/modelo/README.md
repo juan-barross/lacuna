@@ -31,7 +31,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from dxp.llm import local_messages, parse_answer
 
 base = "Qwen/Qwen2.5-1.5B-Instruct"
-adapter = "SEU_USUARIO_HF/lacuna-extrator-qwen2.5-1.5b-lora"
+adapter = "juan1211/lacuna-extrator-qwen2.5-1.5b-lora"
 tok = AutoTokenizer.from_pretrained(adapter)
 model = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(base, dtype=torch.float32), adapter)
 
@@ -52,7 +52,7 @@ São 289 trechos de extratos de 13 municípios do RJ, tirados dos diários index
 
 Os rótulos de treino foram escritos por um LLM (Claude) e não foram revisados à mão. O modelo aprende a imitar esses rótulos, inclusive os erros. Ficaram fora do treino 9 trechos ambíguos e 2 que coincidiam com o conjunto ouro, um pelo mesmo texto e outro pelo mesmo contrato.
 
-Dataset: `SEU_USUARIO_HF/lacuna-extratos`.
+Dataset: `juan1211/lacuna-extratos`.
 
 ## Treino
 
