@@ -96,12 +96,14 @@ O Opus só processou 45 dos 60 trechos do teste, então a comparação com ele u
 | Regex | zero | instantâneo | instantâneo |
 | Opus 5.5 | US$ 0,014 | 4,9 s | 14,9 s |
 | Nemotron grátis | zero | 2,2 s | 148 s |
+| Qwen2.5-1.5B + LoRA (T4) | zero | 18 s | 28 s |
 
 O que os números dizem:
 
 - O Opus ganha do regex em todos os campos. A maior diferença é a data de assinatura (0,97 contra 0,70): o regex pega a primeira data que aparece, que muitas vezes é o início da vigência.
 - Os campos que decidem o casamento com o PNCP são o nome e o valor. No teste, o regex acerta 0,80 do nome e 0,91 do valor. É uma base razoável para a taxa, mas parte dos 31% pode vir de extração errada e não de contrato que falta no portal.
 - O Nemotron grátis acerta o valor e o objeto tão bem quanto o Opus e, no teste, passa o regex em nome (0,94 contra 0,80) e valor (0,96 contra 0,91), mas quase sempre erra a data (0,23 no dev e no teste). Ele lê a data certa e erra a conversão: "04/11/2025" vira "0404-11-20" e "24/06/2026" vira "2462-06-24". O esquema aceita qualquer data válida, então esse erro passa. Uma checagem de faixa de ano resolveria.
+- Um Qwen2.5-1.5B ajustado com QLoRA nos 289 trechos de treino, em 18 minutos numa T4 gratuita do Colab, passou o regex em todos os campos do teste: data 0,92, nome 0,93, valor 0,99 e CNPJ 1,00, sem nenhuma resposta fora do JSON. No dev ficou abaixo do Opus na data (0,88 contra 0,96) e no nome (0,86 contra 0,91), sem custo por documento, mas leva 18 s por trecho. O adaptador está em [juan1211/lacuna-extrator-qwen2.5-1.5b-lora](https://huggingface.co/juan1211/lacuna-extrator-qwen2.5-1.5b-lora) e o treino em [`notebooks/treino_qlora.ipynb`](notebooks/treino_qlora.ipynb).
 - Em Cordeiro, um extrato diz "R$ 660,00 (seiscentos e sessenta mil reais)". Os três extratores leram 660,00. O valor certo era o do extenso.
 
 **Precisão do casamento.** Dos 100 pares casados conferidos à mão em `data/gold/casamentos.csv`, os 100 estão certos (precisão 100%, IC 95% de 96,3% a 100%). Quando o Lacuna diz que achou o contrato no PNCP, ele acertou. O erro que sobra está do outro lado: extratos que deveriam casar e não casaram, que a precisão não mede.

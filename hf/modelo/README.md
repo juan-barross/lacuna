@@ -56,7 +56,7 @@ Dataset: `juan1211/lacuna-extratos`.
 
 ## Treino
 
-QLoRA com o modelo base em NF4 e cálculo em fp16, numa GPU T4 do Colab. LoRA com r=16, alpha=32 e dropout 0,05 em todas as projeções de atenção e MLP. Foram 3 épocas com taxa de aprendizado 2e-4 e cosseno, batch efetivo de 16 e perda só na resposta. O notebook está em [`notebooks/treino_qlora.ipynb`](https://github.com/juan-barross/lacuna/blob/main/notebooks/treino_qlora.ipynb).
+QLoRA com o modelo base em NF4 e cálculo em fp16, numa GPU T4 do Colab. LoRA com r=16, alpha=32 e dropout 0,05 em todas as projeções de atenção e MLP. Foram 3 épocas com taxa de aprendizado 2e-4 e cosseno, batch efetivo de 16 e perda só na resposta. O treino levou 17,7 min e terminou com perda de 0,008. Versões: torch 2.11, transformers 5.21, peft 0.21.2, trl 1.17.1 e bitsandbytes 0.50.2. O notebook está em [`notebooks/treino_qlora.ipynb`](https://github.com/juan-barross/lacuna/blob/main/notebooks/treino_qlora.ipynb).
 
 ## Avaliação
 
@@ -64,18 +64,18 @@ F1 por campo no conjunto ouro do Lacuna (60 trechos de teste, rótulos revisados
 
 | Campo | Qwen2.5-1.5B sem ajuste | Este modelo | Regex |
 |---|---:|---:|---:|
-| tipo |  |  | 0,93 |
-| número do contrato |  |  | 0,78 |
-| processo |  |  | 0,82 |
-| nome da contratada |  |  | 0,80 |
-| CNPJ da contratada |  |  | 0,86 |
-| objeto |  |  | 0,95 |
-| valor |  |  | 0,91 |
-| data de assinatura |  |  | 0,70 |
+| tipo |  | 0,98 | 0,93 |
+| número do contrato |  | 0,93 | 0,78 |
+| processo |  | 0,97 | 0,82 |
+| nome da contratada |  | 0,93 | 0,80 |
+| CNPJ da contratada |  | 1,00 | 0,86 |
+| objeto |  | 0,97 | 0,95 |
+| valor |  | 0,99 | 0,91 |
+| data de assinatura |  | 0,92 | 0,70 |
 
-As colunas do modelo foram medidas com a base em 4 bits, como no treino. O Space roda a base em fp32, e a diferença não foi medida.
+As colunas do modelo foram medidas na T4 do Colab com a base em 4 bits, como no treino. Nenhuma das 100 respostas saiu fora do JSON, e a latência foi de 18 s por trecho (p95 de 28 s). O Space roda a base em fp32, e a diferença não foi medida.
 
-No dev (40 trechos), o Claude Opus 5.5 via API teve F1 de 0,96 na data e 0,91 no nome, a US$ 0,014 por documento, medido antes da anonimização dos dados.
+No dev (40 trechos), este modelo teve F1 de 0,88 na data, 0,86 no nome e 0,91 no número do contrato. O Claude Opus 5.5 via API teve 0,96, 0,91 e 0,89, a US$ 0,014 por documento, medido antes da anonimização dos dados.
 
 ## Limitações
 
