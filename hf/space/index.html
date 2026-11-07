@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lacuna · extrator de contratos</title>
+    <meta
+      name="description"
+      content="Compare, extrato por extrato, o que um Qwen2.5-1.5B ajustado com QLoRA, o mesmo modelo sem ajuste e um regex leram em contratos de diários oficiais."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="estilo.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Lacuna · diários oficiais × PNCP</p>
+        <h1>O que cada extrator leu nos contratos</h1>
+        <p class="lead">
+          Extratos de contrato publicados em diários oficiais de municípios do RJ, com os dados pessoais anonimizados. Para
+          cada um, a resposta revisada à mão ao lado do que leram um Qwen2.5-1.5B ajustado com QLoRA, o mesmo modelo sem
+          ajuste e um extrator por regex. São os 60 trechos do conjunto de teste, que nenhum deles viu no treino.
+        </p>
+      </header>
+
+      <section aria-labelledby="titulo-f1">
+        <h2 id="titulo-f1">F1 por campo no teste</h2>
+        <div class="card scroll">
+          <table id="f1"></table>
+        </div>
+        <p class="muted">
+          Sem ajuste, o Qwen devolveu JSON fora do esquema em 58 dos 60 trechos. O ajuste com 289 exemplos, em 18 minutos
+          numa T4 gratuita, é o que ensina o formato e os campos.
+        </p>
+      </section>
+
+      <section aria-labelledby="titulo-trechos">
+        <h2 id="titulo-trechos">Trecho por trecho</h2>
+        <div class="controls">
+          <label class="visually-hidden" for="trecho">Trecho</label>
+          <select id="trecho"></select>
+          <button id="anterior" class="secondary" type="button">Anterior</button>
+          <button id="proximo" class="secondary" type="button">Próximo</button>
+          <label class="check"><input id="erros" type="checkbox" /> Só onde o QLoRA errou</label>
+        </div>
+        <p id="posicao" class="muted counter" role="status"></p>
+        <div class="explorer">
+          <div class="card">
+            <pre id="texto" class="source"></pre>
+          </div>
+          <div class="card scroll">
+            <p id="invalido" class="invalid" hidden></p>
+            <table id="campos"></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="about">
+        <h2>Como foi medido</h2>
+        <p>
+          A resposta certa de cada trecho foi revisada à mão. Objeto e nome da contratada contam como acerto com
+          sobreposição de palavras a partir de 0,5 e 0,8, e o valor com arredondamento em centavos, a mesma regra do
+          relatório. Um campo vazio só conta como acerto quando a resposta certa também é vazia.
+        </p>
+        <p>
+          O modelo ajustado rodou numa T4 do Colab com a base em 4 bits e levou 18 s por trecho. As respostas desta
+          página foram geradas uma vez e gravadas, então a página não depende de GPU para ficar no ar.
+        </p>
+        <p class="links">
+          <a href="https://github.com/juan-barross/lacuna">Código no GitHub</a>
+          <a href="https://huggingface.co/juan1211/lacuna-extrator-qwen2.5-1.5b-lora">Adaptador no Hugging Face</a>
+          <a href="https://huggingface.co/datasets/juan1211/lacuna-extratos">Dataset</a>
+        </p>
+      </section>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

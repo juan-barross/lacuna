@@ -1,16 +1,16 @@
 ---
 title: Lacuna Extrator
 emoji: 📄
-colorFrom: gray
-colorTo: green
-sdk: gradio
-sdk_version: 5.50.0
-python_version: "3.12"
-app_file: app.py
+colorFrom: blue
+colorTo: gray
+sdk: static
+app_file: index.html
 license: mit
-short_description: Extrai campos de extratos de contrato de diários oficiais
+models:
+- juan1211/lacuna-extrator-qwen2.5-1.5b-lora
+datasets:
+- juan1211/lacuna-extratos
+short_description: O que cada extrator leu em contratos de diários oficiais
 ---
 
-Demonstração do extrator ajustado com QLoRA do [Lacuna](https://github.com/juan-barross/lacuna). O app recebe um extrato de contrato publicado em diário oficial municipal e devolve tipo, número, processo, contratada, CNPJ, objeto, valor e data de assinatura, lado a lado com o extrator por regex do projeto.
-
-O adaptador é lido da variável `ADAPTER` (Settings → Variables). Enquanto ele for privado, o Space precisa de um secret `HF_TOKEN` com um token de leitura. O modelo roda em CPU, por isso cada extração leva de 30 s a 1 min.
+Explorador do conjunto de teste do [Lacuna](https://github.com/juan-barross/lacuna): para cada extrato de contrato, a resposta revisada à mão ao lado do que leram o Qwen2.5-1.5B ajustado com QLoRA, o mesmo modelo sem ajuste e o extrator por regex. As respostas foram geradas uma vez numa T4 e gravadas em `dados.json` pelo comando `dxp explorador`, então o Space é estático e não dorme.

@@ -13,6 +13,7 @@ import pyarrow.parquet as pq
 from dxp import coverage, pncp, qd
 from dxp.anonymize import anonymize_files, target_files
 from dxp.evaluation import agreement, review_precision, score, write_queue, write_review
+from dxp.explorer import explorer_data
 from dxp.files import load_env, read_csv, read_jsonl, write_csv
 from dxp.llm import FREE_MODEL, LLMExtractor
 from dxp.period import Period
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCOPE_CSV = ROOT / "data" / "recorte_rj.csv"
 APP_DATA = ROOT / "app" / "data"
 REPORTS = ROOT / "reports"
+SPACE = ROOT / "hf" / "space"
 QD_PERIOD = Period(date(2025, 10, 1), date(2026, 9, 30))
 PNCP_PERIOD = Period(date(2025, 8, 1), date(2026, 10, 14))
 MIN_GAZETTES = 100
@@ -209,6 +211,16 @@ def cmd_anonymize(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_explorer(args: argparse.Namespace) -> None:
+    predictions = sorted(REPORTS.glob("*_previsoes_test.jsonl"))[-1]
+    data = explorer_data(read_jsonl(args.data_dir / "gold" / "test.jsonl"), read_jsonl(predictions))
+    (SPACE / "dados.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    print_table(
+        [{"extrator": name, **f1} for name, f1 in data["f1"].items()],
+        ["extrator", *data["campos"]],
+    )
+
+
 COMMANDS = {
     "recorte": Command(lambda _: cmd_scope(), "lista os municípios do RJ e marca os que entram no recorte"),
     "qd-download": Command(cmd_qd_download, "baixa os diários do recorte"),
@@ -228,6 +240,7 @@ COMMANDS = {
     "precisao": Command(cmd_precision, "precisão do casamento na amostra conferida à mão"),
     "cobertura": Command(cmd_coverage, "texto disponível por município"),
     "anonimizar": Command(cmd_anonymize, "mascara dados pessoais nos arquivos versionados, no lugar"),
+    "explorador": Command(cmd_explorer, "grava os dados do explorador da demo com as previsões do teste"),
 }
 
 

@@ -30,9 +30,8 @@ def main() -> None:
 
     upload(api, MODEL_REPO, "model", "README.md", "hf/modelo/README.md")
 
-    api.create_repo(SPACE_REPO, repo_type="space", space_sdk="gradio", private=True, exist_ok=True)
+    api.create_repo(SPACE_REPO, repo_type="space", space_sdk="static", private=True, exist_ok=True)
     api.upload_folder(folder_path=ROOT / "hf/space", repo_id=SPACE_REPO, repo_type="space")
-    api.add_space_variable(SPACE_REPO, "ADAPTER", MODEL_REPO)
 
     for kind, repo in [("datasets/", DATASET_REPO), ("", MODEL_REPO), ("spaces/", SPACE_REPO)]:
         print(f"https://huggingface.co/{kind}{repo}")
