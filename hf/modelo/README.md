@@ -73,7 +73,7 @@ F1 por campo no conjunto ouro do Lacuna (60 trechos de teste, rótulos revisados
 | valor | 0,07 | 0,99 | 0,91 |
 | data de assinatura | 0,04 | 0,92 | 0,70 |
 
-As colunas do modelo foram medidas na T4 do Colab com a base em 4 bits, como no treino. Sem ajuste, o Qwen devolveu JSON fora do esquema em 58 dos 60 trechos, que contam como erro pela mesma regra dos outros extratores; o ajuste é o que ensina o formato. Com o adaptador, nenhuma das 100 respostas saiu fora do JSON, e a latência foi de 18 s por trecho (p95 de 28 s). O Space roda a base em fp32, e a diferença não foi medida.
+As colunas do modelo foram medidas na T4 do Colab com a base em 4 bits, como no treino. Sem ajuste, o Qwen devolveu JSON fora do esquema em 58 dos 60 trechos, que contam como erro pela mesma regra dos outros extratores; o ajuste é o que ensina o formato. Com o adaptador, nenhuma das 100 respostas saiu fora do JSON, e a latência foi de 18 s por trecho (p95 de 28 s). O Space [juan1211/lacuna-extrator](https://huggingface.co/spaces/juan1211/lacuna-extrator) mostra essas respostas trecho por trecho, ao lado da resposta certa.
 
 No dev (40 trechos), este modelo teve F1 de 0,88 na data, 0,86 no nome e 0,91 no número do contrato. O Claude Opus 5.5 via API teve 0,96, 0,91 e 0,89, a US$ 0,014 por documento, medido antes da anonimização dos dados.
 
