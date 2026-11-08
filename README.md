@@ -7,7 +7,8 @@ Um em cada três extratos de contrato publicados nos diários oficiais de 13 mun
 
 O Lacuna lê os diários pelo [Querido Diário](https://queridodiario.ok.org.br/), separa os extratos de contrato, extrai empresa, CNPJ, valor e data, e procura cada extrato entre os contratos que as prefeituras registraram no [PNCP](https://pncp.gov.br/). Um extrato sem par é tratado como lacuna de dados: ele mostra que a informação não chegou ao portal federal e não diz nada sobre a legalidade do contrato.
 
-[Ver o painel](https://lacuna.streamlit.app)
+- [Explorar os extratores](https://huggingface.co/spaces/juan1211/lacuna-extrator): os 60 trechos de teste do conjunto ouro, com o que o regex, o Qwen2.5-1.5B sem ajuste e o Qwen2.5-1.5B com QLoRA leram em cada campo. É uma página estática, sempre no ar.
+- [Ver o painel](https://lacuna.streamlit.app): a taxa por município, no Streamlit Community Cloud, que pode levar alguns segundos para acordar.
 
 [![Painel do Lacuna](docs/painel.jpg)](https://lacuna.streamlit.app)
 
@@ -165,7 +166,7 @@ dxp precisao                     # depois de preencher data/gold/casamentos.csv
 pytest
 ```
 
-São 142 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
+São 433 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
 
 ## Decisões
 
