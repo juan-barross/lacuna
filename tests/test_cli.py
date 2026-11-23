@@ -246,6 +246,11 @@ def test_avaliar_sem_conjunto_ouro_falha_com_arquivo_ausente(data_dir):
         dxp(data_dir, "avaliar")
 
 
+def test_explorador_sem_previsoes_do_teste_sai_com_aviso(data_dir):
+    with pytest.raises(SystemExit, match="nenhum arquivo de previsões"):
+        dxp(data_dir, "explorador")
+
+
 def test_llm_fila_extrai_so_os_trechos_do_split(data_dir, queue_file, monkeypatch, capsys):
     llm = FakeLLM()
     monkeypatch.setitem(cli.EXTRACTORS, "llm", lambda: llm)

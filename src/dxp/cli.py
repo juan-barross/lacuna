@@ -212,7 +212,9 @@ def cmd_anonymize(args: argparse.Namespace) -> None:
 
 
 def cmd_explorer(args: argparse.Namespace) -> None:
-    predictions = sorted(REPORTS.glob("*_previsoes_test.jsonl"))[-1]
+    predictions = max(REPORTS.glob("*_previsoes_test.jsonl"), default=None)
+    if predictions is None:
+        raise SystemExit(f"nenhum arquivo de previsões do teste em {REPORTS}")
     data = explorer_data(read_jsonl(args.data_dir / "gold" / "test.jsonl"), read_jsonl(predictions))
     (SPACE / "dados.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     print_table(
