@@ -191,7 +191,9 @@ def render_page() -> None:
     st.caption(
         "Outubro de 2025 a setembro de 2026. Elegível é o extrato de contrato com fornecedor e valor "
         "identificado; contratação temporária de pessoal fica de fora, porque não vai para o PNCP. "
-        "Um ato sem par é uma lacuna de dados, não uma irregularidade."
+        "Um ato sem par é uma lacuna de dados, não uma irregularidade. Os extratos foram lidos por regras "
+        "(regex) e casados com o PNCP por regras de cidade, valor, data e nome; dos 100 pares conferidos "
+        "à mão, 82 estavam certos."
     )
     tab_rates, tab_atos, tab_coverage = st.tabs(["Conciliação", "Atos", "Cobertura do diário"])
     with tab_rates:
