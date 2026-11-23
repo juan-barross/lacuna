@@ -27,7 +27,7 @@ Trechos de extratos de contrato publicados nos diários oficiais de 13 municípi
 
 | Split | Trechos | Rótulos |
 |---|---:|---|
-| train | 289 | escritos por LLM (Claude), sem revisão humana |
+| train | 289 | escritos por LLM (Claude) e revisados à mão |
 | dev | 40 | rascunho de LLM revisado à mão |
 | test | 60 | rascunho de LLM revisado à mão |
 

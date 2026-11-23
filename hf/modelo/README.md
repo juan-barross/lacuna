@@ -50,7 +50,7 @@ O prompt de sistema é o `LOCAL_PROMPT` do Lacuna: o `PROMPT` do extrator via AP
 
 São 289 trechos de extratos de 13 municípios do RJ, tirados dos diários indexados pelo [Querido Diário](https://queridodiario.ok.org.br/) entre 2025 e 2026: 257 contratos, 19 contratações temporárias de pessoal e 13 trechos que não são extrato de contrato (termo aditivo, termo de colaboração e afins).
 
-Os rótulos de treino foram escritos por um LLM (Claude) e não foram revisados à mão. O modelo aprende a imitar esses rótulos, inclusive os erros. Ficaram fora do treino 9 trechos ambíguos e 2 que coincidiam com o conjunto ouro, um pelo mesmo texto e outro pelo mesmo contrato.
+Os rótulos de treino foram escritos por um LLM (Claude) e revisados à mão contra o texto. O modelo aprende a imitar esses rótulos, inclusive os erros que passaram na revisão. Ficaram fora do treino 9 trechos ambíguos e 2 que coincidiam com o conjunto ouro, um pelo mesmo texto e outro pelo mesmo contrato.
 
 Dataset: `juan1211/lacuna-extratos`.
 
@@ -79,7 +79,7 @@ No dev (40 trechos), este modelo teve F1 de 0,88 na data, 0,86 no nome e 0,91 no
 
 ## Limitações
 
-- Os rótulos de treino e o rascunho do conjunto ouro vieram do Claude. O conjunto ouro foi revisado à mão, mas a comparação pode favorecer modelos que escrevem como o Claude.
+- Os rótulos de treino e o rascunho do conjunto ouro vieram do Claude. Os dois foram revisados à mão, mas a comparação pode favorecer modelos que escrevem como o Claude.
 - Os 13 municípios do treino são os mesmos da avaliação. Em diários com outro formato, o desempenho deve cair.
 - Treino e avaliação usam os dados anonimizados: nas contratações temporárias o nome virou `Pessoa XXXXXX`. Com o nome e o CPF reais, o modelo pode errar mais o tipo e o nome desses casos.
 - Treino e ouro foram separados por texto e por contrato, não por diário. Dez trechos do ouro têm no treino um trecho do mesmo diário, com cabeçalho e rodapé parecidos.
