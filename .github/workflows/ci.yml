@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,8 +25,6 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
-      - name: avaliação no dev com respostas gravadas do LLM
+      - name: avaliação do regex no dev
         if: hashFiles('data/gold/dev.jsonl') != ''
-        run: |
-          dxp avaliar --extrator regex --split dev
-          dxp avaliar --extrator llm --split dev
+        run: dxp avaliar --extrator regex --split dev

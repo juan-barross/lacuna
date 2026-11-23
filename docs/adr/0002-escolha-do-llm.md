@@ -24,7 +24,7 @@ O esforço baixo de raciocínio mantém o custo perto de US$ 0,012 por extrato, 
 
 ## Consequências
 
-- Cada resposta fica em `data/llm_cache/` por hash de modelo, prompt e texto. A CI avalia com essas respostas e não precisa de chave.
+- Cada resposta fica em `data/llm_cache/` por hash de modelo, prompt e texto. Repetir a avaliação na mesma máquina não gasta chave. A pasta não é versionada, então a CI avalia só o regex.
 - Mudar o prompt muda o hash e invalida o cache. Uma nova rodada no dev vem antes de qualquer rodada no teste.
 - O OpenRouter reserva crédito pelo `max_tokens` de cada pedido. Com o saldo baixo, pedidos em paralelo voltam com 402; por isso `max_tokens` fica em 1.500 e o `llm-fila` usa duas chamadas por vez.
 - O custo é calculado pelos tokens de cada resposta e pela tabela de preço em `llm.py`. Se o preço mudar, a tabela muda junto.
