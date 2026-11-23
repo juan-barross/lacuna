@@ -1,16 +1,16 @@
 # Lacuna
 
 [![ci](https://github.com/juan-barross/lacuna/actions/workflows/ci.yml/badge.svg)](https://github.com/juan-barross/lacuna/actions/workflows/ci.yml)
-[![Abrir o painel](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://lacuna.streamlit.app)
 
 Um em cada três extratos de contrato publicados nos diários oficiais de 13 municípios do RJ não tem registro correspondente no Portal Nacional de Contratações Públicas (PNCP).
 
 O Lacuna lê os diários pelo [Querido Diário](https://queridodiario.ok.org.br/), separa os extratos de contrato, extrai empresa, CNPJ, valor e data, e procura cada extrato entre os contratos que as prefeituras registraram no [PNCP](https://pncp.gov.br/). Um extrato sem par é tratado como lacuna de dados: ele mostra que a informação não chegou ao portal federal e não diz nada sobre a legalidade do contrato.
 
 - [Explorar os extratores](https://huggingface.co/spaces/juan1211/lacuna-extrator): os 60 trechos de teste do conjunto ouro, com o que o regex, o Qwen2.5-1.5B sem ajuste e o Qwen2.5-1.5B com QLoRA leram em cada campo. É uma página estática, sempre no ar.
-- [Ver o painel](https://lacuna.streamlit.app): a taxa por município, no Streamlit Community Cloud, que pode levar alguns segundos para acordar.
+- [Ajuste fino](#avaliação): um Qwen2.5-1.5B ajustado com QLoRA em 18 minutos, numa T4 gratuita, passa o regex em todos os campos do teste.
+- [Rodar o painel](#como-rodar): a taxa por município, com `streamlit run app/streamlit_app.py` e os dados já incluídos no repositório.
 
-[![Painel do Lacuna](docs/painel.jpg)](https://lacuna.streamlit.app)
+![Painel do Lacuna](docs/painel.jpg)
 
 ## Resultado
 
@@ -99,6 +99,8 @@ O Opus só processou 45 dos 60 trechos do teste, então a comparação com ele u
 | Nemotron grátis | zero | 2,2 s | 148 s |
 | Qwen2.5-1.5B + LoRA (T4) | zero | 18 s | 28 s |
 
+![F1 por campo: regex, Qwen sem ajuste e Qwen com QLoRA](docs/extratores_f1.png)
+
 O que os números dizem:
 
 - O Opus ganha do regex em todos os campos. A maior diferença é a data de assinatura (0,97 contra 0,70): o regex pega a primeira data que aparece, que muitas vezes é o início da vigência.
@@ -107,7 +109,7 @@ O que os números dizem:
 - Um Qwen2.5-1.5B ajustado com QLoRA nos 289 trechos de treino, em 18 minutos numa T4 gratuita do Colab, passou o regex em todos os campos do teste: data 0,92, nome 0,93, valor 0,99 e CNPJ 1,00, sem nenhuma resposta fora do JSON. O mesmo Qwen sem ajuste ficou entre 0,03 e 0,12 em todos os campos, porque devolveu JSON fora do esquema em 58 dos 60 trechos ([`notebooks/previsoes_test.ipynb`](notebooks/previsoes_test.ipynb), que também confirmou o F1 do adaptador campo a campo). No dev ficou abaixo do Opus na data (0,88 contra 0,96) e no nome (0,86 contra 0,91), sem custo por documento, mas leva 18 s por trecho. O adaptador está em [juan1211/lacuna-extrator-qwen2.5-1.5b-lora](https://huggingface.co/juan1211/lacuna-extrator-qwen2.5-1.5b-lora) e o treino em [`notebooks/treino_qlora.ipynb`](notebooks/treino_qlora.ipynb).
 - Em Cordeiro, um extrato diz "R$ 660,00 (seiscentos e sessenta mil reais)". Os três extratores leram 660,00. O valor certo era o do extenso.
 
-**Precisão do casamento.** Dos 100 pares casados conferidos à mão em `data/gold/casamentos.csv`, os 100 estão certos (precisão 100%, IC 95% de 96,3% a 100%). Quando o Lacuna diz que achou o contrato no PNCP, ele acertou. O erro que sobra está do outro lado: extratos que deveriam casar e não casaram, que a precisão não mede.
+**Precisão do casamento.** Dos 100 pares casados conferidos à mão em `data/gold/casamentos.csv`, 82 estão certos (precisão de 82%, IC 95% de 73% a 88%). Quando o Lacuna diz que achou o contrato no PNCP, acerta em cerca de 4 de cada 5 casos. Um par errado conta como casado, então a parcela real sem par pode ser maior que a medida. Fica ainda o erro do outro lado: extratos que deveriam casar e não casaram, que a precisão não mede.
 
 **Como o conjunto ouro foi rotulado.** Um LLM (Claude) escreveu um rascunho de cada trecho seguindo o [guia de anotação](docs/guia_anotacao.md), sem ver a saída dos extratores, e eu revisei cada um à mão contra o texto, decidindo os casos ambíguos. O rascunho vem da mesma família do Opus, o que pode favorecer o Opus na comparação; os números dele devem ser lidos com essa ressalva.
 
@@ -166,12 +168,13 @@ dxp precisao                     # depois de preencher data/gold/casamentos.csv
 pytest
 ```
 
-São 433 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
+São 434 testes, e nenhum acessa a internet: as APIs são simuladas com respostas gravadas. Um deles roda a CLI de ponta a ponta num diretório temporário, e três abrem os apps Streamlit sem navegador.
 
 ## Decisões
 
 - [0001: recorte no RJ, out/2025 a set/2026, e municípios sem texto](docs/adr/0001-recorte-estado-periodo.md)
 - [0002: Claude Opus 5.5 pelo OpenRouter na extração](docs/adr/0002-escolha-do-llm.md)
+- [0003: índice próprio no Elasticsearch, substituída pela 0004](docs/adr/0003-elasticsearch-alem-da-busca-do-qd.md)
 - [0004: BM25 no DuckDB no lugar do Elasticsearch](docs/adr/0004-duckdb-no-lugar-do-elasticsearch.md)
 - [0005: regras de conciliação](docs/adr/0005-regras-de-conciliacao.md)
 
